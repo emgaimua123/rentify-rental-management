@@ -2,25 +2,31 @@ import { Request, Response } from 'express';
 import prisma from '../prismaClient';
 import { CreateRoomInput, UpdateRoomInput, BulkGenerateRoomsDTO } from '../dtos/room.dto';
 
-// Lấy danh sách toàn bộ phòng (Có hỗ trợ phân trang và lọc trạng thái)
+// Lấy danh sách toàn bộ phòng (Phân trang, Lọc trạng thái, Sắp xếp, Bỏ qua phòng đã xóa)
 export const getRooms = async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const status = req.query.status as string;
+    const sortBy = req.query.sortBy as string;
+    const sortOrder = req.query.sortOrder === 'desc' ? 'desc' : 'asc';
 
     const skip = (page - 1) * limit;
 
-    const filter: any = {};
+    const filter: any = { isDeleted: false };
     if (status) {
       filter.status = status;
     }
+
+    const orderByClause = (sortBy && ['price', 'name'].includes(sortBy))
+      ? { [sortBy]: sortOrder }
+      : { createdAt: 'desc' };
 
     const rooms = await prisma.room.findMany({
       where: filter,
       skip,
       take: limit,
-      orderBy: { createdAt: 'desc' }
+      orderBy: orderByClause as any
     });
 
     const total = await prisma.room.count({ where: filter });
@@ -44,8 +50,8 @@ export const getRooms = async (req: Request, res: Response) => {
 export const getRoomById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const room = await prisma.room.findUnique({
-      where: { id: Number(id) }
+    const room = await prisma.room.findFirst({
+      where: { id: Number(id), isDeleted: false }
     });
 
     if (!room) {
@@ -87,11 +93,36 @@ export const createRoom = async (req: Request, res: Response) => {
   }
 };
 
-// Cập nhật thông tin phòng (đổi giá, đổi loại phòng)
+// Cập nhật thông tin phòng (Khóa logic cập nhật trạng thái nếu đang có người thuê)
 export const updateRoom = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { name, price, area, type, status } = req.body as UpdateRoomInput;
+
+    const room = await prisma.room.findFirst({
+      where: { id: Number(id), isDeleted: false }
+    });
+
+    if (!room) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy phòng.' });
+    }
+
+    // Nếu có thay đổi trạng thái, kiểm tra Hợp đồng
+    if (status && status !== room.status) {
+      const activeContract = await prisma.contract.findFirst({
+        where: { 
+          roomId: Number(id), 
+          endDate: { gte: new Date() } // Hợp đồng chưa hết hạn
+        }
+      });
+
+      if (activeContract) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Không thể đổi trạng thái phòng vì đang có hợp đồng kích hoạt.' 
+        });
+      }
+    }
 
     const updatedRoom = await prisma.room.update({
       where: { id: Number(id) },
@@ -100,42 +131,46 @@ export const updateRoom = async (req: Request, res: Response) => {
 
     res.status(200).json({ success: true, data: updatedRoom });
   } catch (error: any) {
-    // Lỗi P2025 là Record to update not found trong Prisma
-    if (error.code === 'P2025') {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy phòng.' });
-    }
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// Xóa phòng
+// Xóa phòng (Soft Delete)
 export const deleteRoom = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     
-    // Kiểm tra xem phòng có tồn tại không
-    const room = await prisma.room.findUnique({
-      where: { id: Number(id) }
+    const room = await prisma.room.findFirst({
+      where: { id: Number(id), isDeleted: false }
     });
 
     if (!room) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy phòng.' });
     }
 
-    // Xóa phòng
-    await prisma.room.delete({
-      where: { id: Number(id) }
+    // Kiểm tra xem phòng có đang dính hợp đồng kích hoạt không
+    const activeContract = await prisma.contract.findFirst({
+      where: { 
+        roomId: Number(id), 
+        endDate: { gte: new Date() } 
+      }
     });
 
-    res.status(200).json({ success: true, message: 'Xóa phòng thành công.' });
-  } catch (error: any) {
-    // Prisma Foreign Key Constraint Failed Error Code là P2003
-    if (error.code === 'P2003') {
+    if (activeContract || room.status === 'Occupied') {
       return res.status(400).json({ 
         success: false, 
         message: 'Không thể xóa phòng đang có người thuê' 
       });
     }
+
+    // Soft Delete: Chuyển isDeleted thành true
+    await prisma.room.update({
+      where: { id: Number(id) },
+      data: { isDeleted: true, status: 'Maintenance' } // Tự động khóa phòng sau khi xóa mềm
+    });
+
+    res.status(200).json({ success: true, message: 'Xóa phòng thành công.' });
+  } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
 };

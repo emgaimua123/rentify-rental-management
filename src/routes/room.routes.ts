@@ -84,6 +84,17 @@ router.post('/bulk-generate', bulkGenerateRooms);
  *         schema:
  *           type: string
  *         description: Lọc theo trạng thái phòng (Available, Occupied, Maintenance)
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *         description: Sắp xếp theo trường (price, name)
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *         description: Thứ tự sắp xếp (asc, desc)
  *     responses:
  *       200:
  *         description: Trả về danh sách phòng
@@ -111,6 +122,8 @@ router.post('/bulk-generate', bulkGenerateRooms);
  *                         type: string
  *                       status:
  *                         type: string
+ *                       isDeleted:
+ *                         type: boolean
  *                       createdAt:
  *                         type: string
  *                       updatedAt:
@@ -196,7 +209,7 @@ router.post('/', createRoom);
  * @swagger
  * /api/rooms/{id}:
  *   put:
- *     summary: Cập nhật thông tin phòng (đổi giá, đổi loại phòng)
+ *     summary: Cập nhật thông tin phòng (Khóa logic cập nhật trạng thái nếu đang có người thuê)
  *     tags: [Rooms]
  *     parameters:
  *       - in: path
@@ -225,6 +238,8 @@ router.post('/', createRoom);
  *     responses:
  *       200:
  *         description: Cập nhật thành công
+ *       400:
+ *         description: Lỗi cập nhật (Không thể đổi trạng thái phòng vì đang có hợp đồng kích hoạt)
  *       404:
  *         description: Không tìm thấy phòng
  *       500:
@@ -236,7 +251,7 @@ router.put('/:id', updateRoom);
  * @swagger
  * /api/rooms/{id}:
  *   delete:
- *     summary: Xóa phòng
+ *     summary: Xóa phòng (Soft Delete)
  *     tags: [Rooms]
  *     parameters:
  *       - in: path
@@ -261,6 +276,14 @@ router.put('/:id', updateRoom);
  *                 message:
  *                   type: string
  *                   example: "Không thể xóa phòng đang có người thuê"
+ *       404:
+ *         description: Không tìm thấy phòng
+ *       500:
+ *         description: Lỗi server
+ */
+router.delete('/:id', deleteRoom);
+
+export default router;��i thuê"
  *       404:
  *         description: Không tìm thấy phòng
  *       500:
