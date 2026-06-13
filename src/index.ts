@@ -13,6 +13,8 @@ const PORT = process.env.PORT || 3000;
 // Middlewares
 app.use(cors());
 app.use(express.json());
+// Phục vụ file tĩnh cho thư mục uploads
+app.use('/uploads', express.static('public/uploads'));
 
 // Swagger Options
 const swaggerOptions = {
