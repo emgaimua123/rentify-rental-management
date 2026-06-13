@@ -1,3 +1,4 @@
+import path from 'path';
 import express from 'express';
 import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
@@ -11,8 +12,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middlewares
-app.use(cors());
-app.use(express.json());
+app.use('/uploads', express.static(path.join(process.cwd(), 'public/uploads')));
+
 // Phục vụ file tĩnh cho thư mục uploads
 app.use('/uploads', express.static('public/uploads'));
 
@@ -37,13 +38,15 @@ const swaggerOptions = {
 const swaggerDocs = swaggerJsDoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
+// Mở quyền truy cập thư mục public/uploads ra ngoài internet
+app.use('/uploads', express.static('public/uploads'));
+
 // Routes
 app.use('/api/rooms', roomRoutes);
 
-// Base route
-app.get('/', (req, res) => {
-  res.send('Welcome to Rentify API! Access /api-docs for Swagger UI.');
-});
+// Serve static files for frontend UI
+app.use(express.static('public'));
+
 
 // Bắt đầu server
 app.listen(PORT, () => {

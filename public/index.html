@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rentify - Quản lý Phòng trọ</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Boxicons -->
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <i class='bx bxs-home-smile'></i>
+                <h2>Rentify.</h2>
+            </div>
+            <nav class="menu">
+                <a href="#" class="active"><i class='bx bx-grid-alt'></i> Tổng quan</a>
+                <a href="#"><i class='bx bx-building-house'></i> Danh sách phòng</a>
+                <a href="#"><i class='bx bx-receipt'></i> Hợp đồng</a>
+                <a href="#"><i class='bx bx-cog'></i> Cài đặt</a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="topbar">
+                <div class="search-bar">
+                    <i class='bx bx-search'></i>
+                    <input type="text" placeholder="Tìm kiếm phòng..." id="searchInput">
+                </div>
+                <div class="user-profile">
+                    <img src="https://ui-avatars.com/api/?name=Admin&background=4F46E5&color=fff" alt="User">
+                </div>
+            </header>
+
+            <div class="dashboard-header">
+                <div>
+                    <h1>Quản lý Phòng trọ</h1>
+                    <p>Theo dõi và quản lý các phòng trọ của bạn dễ dàng.</p>
+                </div>
+                <button class="btn-primary" onclick="app.openCreateModal()">
+                    <i class='bx bx-plus'></i> Thêm phòng mới
+                </button>
+            </div>
+
+            <!-- Room Grid -->
+            <div class="room-grid" id="roomGrid">
+                <!-- Cards will be dynamically injected here by JS -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal: Tạo/Sửa phòng -->
+    <div class="modal-overlay" id="roomModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 id="modalTitle">Thêm phòng mới</h3>
+                <button class="btn-close" onclick="app.closeModals()"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="roomForm" onsubmit="app.handleRoomSubmit(event)">
+                    <input type="hidden" id="roomIdInput">
+                    <div class="form-group">
+                        <label>Tên phòng</label>
+                        <input type="text" id="roomName" required placeholder="VD: Phòng 101">
+                    </div>
+                    <div class="form-group-row">
+                        <div class="form-group">
+                            <label>Giá phòng (VNĐ)</label>
+                            <input type="number" id="roomPrice" required placeholder="VD: 3000000" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label>Diện tích (m²)</label>
+                            <input type="number" id="roomArea" required placeholder="VD: 25">
+                        </div>
+                    </div>
+                    <div class="form-group-row">
+                        <div class="form-group">
+                            <label>Loại phòng</label>
+                            <select id="roomType" required>
+                                <option value="Studio">Studio</option>
+                                <option value="Phòng đơn">Phòng đơn</option>
+                                <option value="Phòng đôi">Phòng đôi</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Trạng thái</label>
+                            <select id="roomStatus" required>
+                                <option value="Available">Available</option>
+                                <option value="Occupied">Occupied</option>
+                                <option value="Maintenance">Maintenance</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn-secondary" onclick="app.closeModals()">Hủy</button>
+                        <button type="submit" class="btn-primary">Lưu lại</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Thêm Media -->
+    <div class="modal-overlay" id="mediaModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Thêm Hình Ảnh / Video</h3>
+                <button class="btn-close" onclick="app.closeModals()"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="mediaRoomId">
+                
+                <div class="media-tabs">
+                    <button class="tab-btn active" onclick="app.switchMediaTab('image')">Tải Ảnh lên</button>
+                    <button class="tab-btn" onclick="app.switchMediaTab('video')">Link Video</button>
+                </div>
+
+                <!-- Tab Image -->
+                <div id="tabImage" class="tab-content active">
+                    <form id="imageForm" onsubmit="app.handleImageUpload(event)">
+                        <div class="form-group">
+                            <label>Chọn ảnh (.jpg, .png)</label>
+                            <input type="file" id="roomImage" accept="image/png, image/jpeg" required class="file-input">
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" class="btn-primary">Tải lên</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Tab Video -->
+                <div id="tabVideo" class="tab-content">
+                    <form id="videoForm" onsubmit="app.handleVideoSubmit(event)">
+                        <div class="form-group">
+                            <label>Đường dẫn Video (URL)</label>
+                            <input type="url" id="videoUrl" required placeholder="https://youtube.com/...">
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" class="btn-primary">Lưu Link</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
