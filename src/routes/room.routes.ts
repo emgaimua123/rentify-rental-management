@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getRooms, createRoom, updateRoom, deleteRoom } from '../controllers/room.controller';
+import { getRooms, getRoomById, createRoom, updateRoom, deleteRoom, bulkGenerateRooms } from '../controllers/room.controller';
 
 const router = Router();
 
@@ -12,10 +12,78 @@ const router = Router();
 
 /**
  * @swagger
+ * /api/rooms/bulk-generate:
+ *   post:
+ *     summary: Thêm nhiều phòng tự động theo quy tắc
+ *     tags: [Rooms]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - prefix
+ *               - startNumber
+ *               - endNumber
+ *               - preset
+ *             properties:
+ *               prefix:
+ *                 type: string
+ *                 example: "20"
+ *               startNumber:
+ *                 type: integer
+ *                 example: 1
+ *               endNumber:
+ *                 type: integer
+ *                 example: 5
+ *               preset:
+ *                 type: object
+ *                 properties:
+ *                   price:
+ *                     type: number
+ *                     example: 3500000
+ *                   area:
+ *                     type: number
+ *                     example: 25
+ *                   type:
+ *                     type: string
+ *                     example: "Studio"
+ *                   status:
+ *                     type: string
+ *                     example: "Available"
+ *     responses:
+ *       201:
+ *         description: Tạo danh sách phòng thành công
+ *       400:
+ *         description: Bad Request (Dữ liệu đầu vào không hợp lệ)
+ *       500:
+ *         description: Lỗi server
+ */
+router.post('/bulk-generate', bulkGenerateRooms);
+
+/**
+ * @swagger
  * /api/rooms:
  *   get:
  *     summary: Lấy danh sách toàn bộ phòng
  *     tags: [Rooms]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: Số trang (mặc định 1)
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: Số lượng mỗi trang (mặc định 10)
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *         description: Lọc theo trạng thái phòng (Available, Occupied, Maintenance)
  *     responses:
  *       200:
  *         description: Trả về danh sách phòng
@@ -37,6 +105,8 @@ const router = Router();
  *                         type: string
  *                       price:
  *                         type: number
+ *                       area:
+ *                         type: number
  *                       type:
  *                         type: string
  *                       status:
@@ -45,10 +115,44 @@ const router = Router();
  *                         type: string
  *                       updatedAt:
  *                         type: string
+ *                 meta:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
  *       500:
  *         description: Lỗi server
  */
 router.get('/', getRooms);
+
+/**
+ * @swagger
+ * /api/rooms/{id}:
+ *   get:
+ *     summary: Lấy thông tin chi tiết một phòng
+ *     tags: [Rooms]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID của phòng
+ *     responses:
+ *       200:
+ *         description: Thông tin chi tiết phòng
+ *       404:
+ *         description: Không tìm thấy phòng
+ *       500:
+ *         description: Lỗi server
+ */
+router.get('/:id', getRoomById);
 
 /**
  * @swagger
@@ -71,6 +175,8 @@ router.get('/', getRooms);
  *                 type: string
  *               price:
  *                 type: number
+ *               area:
+ *                 type: number
  *               type:
  *                 type: string
  *               status:
@@ -79,6 +185,8 @@ router.get('/', getRooms);
  *     responses:
  *       201:
  *         description: Tạo phòng thành công
+ *       400:
+ *         description: Validation error (Thiếu tên hoặc giá <= 0)
  *       500:
  *         description: Lỗi server
  */
@@ -107,6 +215,8 @@ router.post('/', createRoom);
  *               name:
  *                 type: string
  *               price:
+ *                 type: number
+ *               area:
  *                 type: number
  *               type:
  *                 type: string

@@ -11,6 +11,7 @@ model Room {
   id        Int        @id @default(autoincrement())
   name      String
   price     Float
+  area      Float?
   type      String
   status    String     @default("Available") // Available, Occupied, Maintenance
   createdAt DateTime   @default(now())
