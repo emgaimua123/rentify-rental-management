@@ -12,9 +12,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middlewares
-app.use('/uploads', express.static(path.join(process.cwd(), 'public/uploads')));
-
-// Phục vụ file tĩnh cho thư mục uploads
+app.use(cors());
+app.use(express.json());
 app.use('/uploads', express.static('public/uploads'));
 
 // Swagger Options
@@ -38,8 +37,6 @@ const swaggerOptions = {
 const swaggerDocs = swaggerJsDoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
-// Mở quyền truy cập thư mục public/uploads ra ngoài internet
-app.use('/uploads', express.static('public/uploads'));
 
 // Routes
 app.use('/api/rooms', roomRoutes);
