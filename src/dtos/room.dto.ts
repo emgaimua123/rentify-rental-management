@@ -4,6 +4,10 @@ export interface CreateRoomInput {
   area?: number;
   type: string;
   status?: string;
+  tenantName?: string;
+  tenantCount?: number;
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface UpdateRoomInput {
@@ -12,6 +16,10 @@ export interface UpdateRoomInput {
   area?: number;
   type?: string;
   status?: string;
+  tenantName?: string;
+  tenantCount?: number;
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface RoomPreset {

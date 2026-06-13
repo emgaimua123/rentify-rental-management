@@ -36,6 +36,7 @@ model Contract {
   id        Int      @id @default(autoincrement())
   roomId    Int
   tenantName String
+  tenantCount Int?   @default(1)
   startDate DateTime
   endDate   DateTime
   createdAt DateTime @default(now())

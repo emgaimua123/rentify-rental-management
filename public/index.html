@@ -101,7 +101,7 @@
                         </div>
                     </div>
 
-                    <div class="form-section-title" style="margin-top: 1.5rem;">2. Hình ảnh & Video</div>
+                    <div class="form-section-title" style="margin-top: 1.5rem;">2. Hình ảnh tình trạng & Biên bản bàn giao</div>
                     <div class="form-group">
                         <label>Tải ảnh lên (Có thể chọn nhiều ảnh)</label>
                         <input type="file" id="roomImages" accept="image/png, image/jpeg" multiple class="file-input">
@@ -109,7 +109,30 @@
                     <div class="form-group" id="videoInputsContainer">
                         <label>Đường dẫn Video (URL)</label>
                         <input type="url" class="video-url-input" placeholder="https://youtube.com/...">
-                        <!-- JS can dynamically add more video inputs if needed, keep it simple with 1 for now -->
+                    </div>
+
+                    <div id="contractSection" style="display: none;">
+                        <div class="form-section-title" style="margin-top: 1.5rem;">3. Thông tin Hợp đồng</div>
+                        <div class="form-group-row">
+                            <div class="form-group">
+                                <label>Tên người thuê</label>
+                                <input type="text" id="tenantName" placeholder="Nguyễn Văn A">
+                            </div>
+                            <div class="form-group">
+                                <label>Số lượng người ở</label>
+                                <input type="number" id="tenantCount" placeholder="2" min="1" value="1">
+                            </div>
+                        </div>
+                        <div class="form-group-row">
+                            <div class="form-group">
+                                <label>Ngày bắt đầu</label>
+                                <input type="date" id="contractStart">
+                            </div>
+                            <div class="form-group">
+                                <label>Ngày kết thúc</label>
+                                <input type="date" id="contractEnd">
+                            </div>
+                        </div>
                     </div>
 
                     <div class="modal-footer" style="margin-top: 2rem;">
@@ -154,6 +177,16 @@
                             <span>Loại phòng</span>
                             <strong id="previewType">Studio</strong>
                         </div>
+                    </div>
+                </div>
+
+                <div id="previewContractSection" style="display: none; background: var(--bg-color); padding: 1.5rem; border-radius: var(--radius-lg); margin-bottom: 2rem;">
+                    <h4 style="margin-bottom: 1rem; color: var(--primary-color);">Hợp đồng hiện tại</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.875rem;">
+                        <div><span style="color: var(--text-muted)">Người thuê:</span> <strong id="previewTenantName">...</strong></div>
+                        <div><span style="color: var(--text-muted)">Số người ở:</span> <strong id="previewTenantCount">...</strong></div>
+                        <div><span style="color: var(--text-muted)">Từ ngày:</span> <strong id="previewStartDate">...</strong></div>
+                        <div><span style="color: var(--text-muted)">Đến ngày:</span> <strong id="previewEndDate">...</strong></div>
                     </div>
                 </div>
 

@@ -3,6 +3,16 @@ const app = {
 
     async init() {
         await this.loadRooms();
+
+        // Event listener cho dropdown Trạng thái phòng
+        document.getElementById('roomStatus').addEventListener('change', (e) => {
+            const contractSection = document.getElementById('contractSection');
+            if (e.target.value === 'Occupied') {
+                contractSection.style.display = 'block';
+            } else {
+                contractSection.style.display = 'none';
+            }
+        });
     },
 
     async loadRooms() {
@@ -68,6 +78,9 @@ const app = {
         document.getElementById('modalTitle').innerText = 'Thêm phòng mới';
         document.getElementById('roomIdInput').value = '';
         document.getElementById('roomForm').reset();
+        
+        document.getElementById('contractSection').style.display = 'none';
+
         document.getElementById('roomModal').classList.add('active');
         document.getElementById('saveRoomBtn').disabled = false;
         document.getElementById('saveRoomBtn').innerText = 'Lưu phòng';
@@ -89,6 +102,21 @@ const app = {
             document.getElementById('roomType').value = room.type;
             document.getElementById('roomStatus').value = room.status;
 
+            if (room.status === 'Occupied' && room.contracts && room.contracts.length > 0) {
+                document.getElementById('contractSection').style.display = 'block';
+                const c = room.contracts[0];
+                document.getElementById('tenantName').value = c.tenantName;
+                document.getElementById('tenantCount').value = c.tenantCount;
+                document.getElementById('contractStart').value = c.startDate.split('T')[0];
+                document.getElementById('contractEnd').value = c.endDate.split('T')[0];
+            } else {
+                document.getElementById('contractSection').style.display = 'none';
+                document.getElementById('tenantName').value = '';
+                document.getElementById('tenantCount').value = '1';
+                document.getElementById('contractStart').value = '';
+                document.getElementById('contractEnd').value = '';
+            }
+
             document.getElementById('roomModal').classList.add('active');
         }, 100); // Wait for fadeout
     },
@@ -106,6 +134,17 @@ const app = {
         badge.innerText = room.status;
         badge.className = `status-badge status-${room.status}`;
 
+        if (room.status === 'Occupied' && room.contracts && room.contracts.length > 0) {
+            const c = room.contracts[0];
+            document.getElementById('previewContractSection').style.display = 'block';
+            document.getElementById('previewTenantName').innerText = c.tenantName;
+            document.getElementById('previewTenantCount').innerText = c.tenantCount + ' người';
+            document.getElementById('previewStartDate').innerText = new Date(c.startDate).toLocaleDateString('vi-VN');
+            document.getElementById('previewEndDate').innerText = new Date(c.endDate).toLocaleDateString('vi-VN');
+        } else {
+            document.getElementById('previewContractSection').style.display = 'none';
+        }
+
         // Render Media
         const gallery = document.getElementById('previewGallery');
         gallery.innerHTML = '';
@@ -115,7 +154,6 @@ const app = {
                 if (media.type === 'IMAGE') {
                     gallery.innerHTML += `<img src="${media.url}" class="media-item">`;
                 } else if (media.type === 'VIDEO') {
-                    // Đơn giản hóa: Hiện link. Có thể đổi thành iframe youtube sau
                     gallery.innerHTML += `
                         <div class="media-item" style="background:#333; display:flex; align-items:center; justify-content:center; color:white;">
                             <a href="${media.url}" target="_blank" style="color:white; text-decoration:none;"><i class='bx bx-play-circle' style="font-size:3rem"></i></a>
@@ -153,8 +191,15 @@ const app = {
             status: document.getElementById('roomStatus').value
         };
 
+        if (data.status === 'Occupied') {
+            data.tenantName = document.getElementById('tenantName').value;
+            data.tenantCount = Number(document.getElementById('tenantCount').value);
+            data.startDate = document.getElementById('contractStart').value;
+            data.endDate = document.getElementById('contractEnd').value;
+        }
+
         try {
-            // Bước 1: Lưu Room
+            // Bước 1: Lưu Room & Contract
             let res;
             if (id) {
                 res = await api.updateRoom(id, data);
@@ -169,12 +214,12 @@ const app = {
                 return;
             }
 
-            const roomId = id || res.data.id; // Nếu tạo mới, lấy ID từ response
+            const roomId = id || res.data.id; 
 
             // Bước 2: Tải lên Ảnh
             const files = document.getElementById('roomImages').files;
             if (files && files.length > 0) {
-                this.showToast('Đang tải ảnh lên...', 'success');
+                this.showToast('Đang tải ảnh/video lên...', 'success');
                 for (let i = 0; i < files.length; i++) {
                     await api.uploadImage(roomId, files[i]);
                 }
