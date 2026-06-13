@@ -1,5 +1,9 @@
 import { Router } from 'express';
-import { getRooms, getRoomById, createRoom, updateRoom, deleteRoom, bulkGenerateRooms } from '../controllers/room.controller';
+import { 
+  getRooms, getRoomById, createRoom, updateRoom, deleteRoom, bulkGenerateRooms,
+  uploadRoomImage, addRoomVideo, deleteRoomMedia
+} from '../controllers/room.controller';
+import { uploadImage } from '../middlewares/upload.middleware';
 
 const router = Router();
 
@@ -128,6 +132,10 @@ router.post('/bulk-generate', bulkGenerateRooms);
  *                         type: string
  *                       updatedAt:
  *                         type: string
+ *                       medias:
+ *                         type: array
+ *                         items:
+ *                           type: object
  *                 meta:
  *                   type: object
  *                   properties:
@@ -283,12 +291,99 @@ router.put('/:id', updateRoom);
  */
 router.delete('/:id', deleteRoom);
 
-export default router;��i thuê"
+/**
+ * @swagger
+ * /api/rooms/{roomId}/images:
+ *   post:
+ *     summary: Thêm ảnh từ máy (Upload Image)
+ *     tags: [Room Media]
+ *     parameters:
+ *       - in: path
+ *         name: roomId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID của phòng
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       201:
+ *         description: Upload ảnh thành công
+ *       400:
+ *         description: Lỗi định dạng file hoặc dung lượng
  *       404:
  *         description: Không tìm thấy phòng
  *       500:
  *         description: Lỗi server
  */
-router.delete('/:id', deleteRoom);
+router.post('/:roomId/images', uploadImage.single('image'), uploadRoomImage);
+
+/**
+ * @swagger
+ * /api/rooms/{roomId}/videos:
+ *   post:
+ *     summary: Thêm nguồn video (Add Video Link)
+ *     tags: [Room Media]
+ *     parameters:
+ *       - in: path
+ *         name: roomId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID của phòng
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - url
+ *             properties:
+ *               url:
+ *                 type: string
+ *                 example: "https://youtube.com/watch?v=12345"
+ *     responses:
+ *       201:
+ *         description: Thêm link video thành công
+ *       400:
+ *         description: URL không hợp lệ
+ *       404:
+ *         description: Không tìm thấy phòng
+ *       500:
+ *         description: Lỗi server
+ */
+router.post('/:roomId/videos', addRoomVideo);
+
+/**
+ * @swagger
+ * /api/rooms/media/{mediaId}:
+ *   delete:
+ *     summary: Xóa Media (Ảnh hoặc Video)
+ *     tags: [Room Media]
+ *     parameters:
+ *       - in: path
+ *         name: mediaId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID của Media
+ *     responses:
+ *       200:
+ *         description: Xóa media thành công
+ *       404:
+ *         description: Không tìm thấy media
+ *       500:
+ *         description: Lỗi server
+ */
+router.delete('/media/:mediaId', deleteRoomMedia);
 
 export default router;
