@@ -56,9 +56,9 @@
         </main>
     </div>
 
-    <!-- Modal: Tạo/Sửa phòng -->
+    <!-- Modal: Tạo/Sửa phòng (Gộp chung form Media) -->
     <div class="modal-overlay" id="roomModal">
-        <div class="modal-card">
+        <div class="modal-card modal-lg">
             <div class="modal-header">
                 <h3 id="modalTitle">Thêm phòng mới</h3>
                 <button class="btn-close" onclick="app.closeModals()"><i class='bx bx-x'></i></button>
@@ -66,6 +66,8 @@
             <div class="modal-body">
                 <form id="roomForm" onsubmit="app.handleRoomSubmit(event)">
                     <input type="hidden" id="roomIdInput">
+                    
+                    <div class="form-section-title">1. Thông tin cơ bản</div>
                     <div class="form-group">
                         <label>Tên phòng</label>
                         <input type="text" id="roomName" required placeholder="VD: Phòng 101">
@@ -98,54 +100,66 @@
                             </select>
                         </div>
                     </div>
-                    <div class="modal-footer">
+
+                    <div class="form-section-title" style="margin-top: 1.5rem;">2. Hình ảnh & Video</div>
+                    <div class="form-group">
+                        <label>Tải ảnh lên (Có thể chọn nhiều ảnh)</label>
+                        <input type="file" id="roomImages" accept="image/png, image/jpeg" multiple class="file-input">
+                    </div>
+                    <div class="form-group" id="videoInputsContainer">
+                        <label>Đường dẫn Video (URL)</label>
+                        <input type="url" class="video-url-input" placeholder="https://youtube.com/...">
+                        <!-- JS can dynamically add more video inputs if needed, keep it simple with 1 for now -->
+                    </div>
+
+                    <div class="modal-footer" style="margin-top: 2rem;">
                         <button type="button" class="btn-secondary" onclick="app.closeModals()">Hủy</button>
-                        <button type="submit" class="btn-primary">Lưu lại</button>
+                        <button type="submit" id="saveRoomBtn" class="btn-primary">Lưu phòng</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- Modal: Thêm Media -->
-    <div class="modal-overlay" id="mediaModal">
-        <div class="modal-card">
-            <div class="modal-header">
-                <h3>Thêm Hình Ảnh / Video</h3>
-                <button class="btn-close" onclick="app.closeModals()"><i class='bx bx-x'></i></button>
+    <!-- Modal: Preview Chi tiết phòng -->
+    <div class="modal-overlay" id="previewModal">
+        <div class="modal-card modal-xl preview-layout">
+            <button class="btn-close absolute-close" onclick="app.closeModals()"><i class='bx bx-x'></i></button>
+            
+            <div class="preview-media">
+                <div class="media-gallery" id="previewGallery">
+                    <!-- Images/Videos injected here -->
+                </div>
             </div>
-            <div class="modal-body">
-                <input type="hidden" id="mediaRoomId">
+
+            <div class="preview-details">
+                <div class="preview-header">
+                    <h2 id="previewName">Tên Phòng</h2>
+                    <div class="status-badge" id="previewStatus">Available</div>
+                </div>
                 
-                <div class="media-tabs">
-                    <button class="tab-btn active" onclick="app.switchMediaTab('image')">Tải Ảnh lên</button>
-                    <button class="tab-btn" onclick="app.switchMediaTab('video')">Link Video</button>
+                <div class="preview-price" id="previewPrice">3.000.000 VNĐ</div>
+                
+                <div class="preview-info-grid">
+                    <div class="info-item">
+                        <i class='bx bx-area'></i>
+                        <div>
+                            <span>Diện tích</span>
+                            <strong id="previewArea">25 m²</strong>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <i class='bx bx-building-house'></i>
+                        <div>
+                            <span>Loại phòng</span>
+                            <strong id="previewType">Studio</strong>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Tab Image -->
-                <div id="tabImage" class="tab-content active">
-                    <form id="imageForm" onsubmit="app.handleImageUpload(event)">
-                        <div class="form-group">
-                            <label>Chọn ảnh (.jpg, .png)</label>
-                            <input type="file" id="roomImage" accept="image/png, image/jpeg" required class="file-input">
-                        </div>
-                        <div class="modal-footer">
-                            <button type="submit" class="btn-primary">Tải lên</button>
-                        </div>
-                    </form>
-                </div>
-
-                <!-- Tab Video -->
-                <div id="tabVideo" class="tab-content">
-                    <form id="videoForm" onsubmit="app.handleVideoSubmit(event)">
-                        <div class="form-group">
-                            <label>Đường dẫn Video (URL)</label>
-                            <input type="url" id="videoUrl" required placeholder="https://youtube.com/...">
-                        </div>
-                        <div class="modal-footer">
-                            <button type="submit" class="btn-primary">Lưu Link</button>
-                        </div>
-                    </form>
+                <div class="preview-actions">
+                    <button class="btn-secondary" id="btnEditRoom" style="flex:1"><i class='bx bx-edit-alt'></i> Sửa phòng</button>
+                    <button class="btn-danger" id="btnDeleteRoom"><i class='bx bx-trash'></i> Xóa</button>
                 </div>
             </div>
         </div>

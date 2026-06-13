@@ -24,12 +24,13 @@ const app = {
         grid.innerHTML = '';
 
         this.rooms.forEach(room => {
-            // Lấy ảnh đầu tiên nếu có
             const imgMedia = room.medias && room.medias.find(m => m.type === 'IMAGE');
             const imgSrc = imgMedia ? imgMedia.url : '';
 
             const card = document.createElement('div');
             card.className = 'room-card';
+            // Bấm vào card sẽ mở preview
+            card.onclick = () => this.openPreviewModal(room.id);
             
             let imgHTML = '';
             if (imgSrc) {
@@ -53,12 +54,8 @@ const app = {
                         <span><i class='bx bx-building-house'></i> ${room.type}</span>
                     </div>
                     <div class="room-actions">
-                        <div class="media-count" onclick="app.openMediaModal(${room.id})">
+                        <div class="media-count">
                             <i class='bx bx-camera'></i> ${room.medias ? room.medias.length : 0} Media
-                        </div>
-                        <div>
-                            <button class="btn-icon" onclick="app.openEditModal(${room.id})"><i class='bx bx-edit-alt'></i></button>
-                            <button class="btn-icon delete" onclick="app.deleteRoom(${room.id})"><i class='bx bx-trash'></i></button>
                         </div>
                     </div>
                 </div>
@@ -72,50 +69,80 @@ const app = {
         document.getElementById('roomIdInput').value = '';
         document.getElementById('roomForm').reset();
         document.getElementById('roomModal').classList.add('active');
+        document.getElementById('saveRoomBtn').disabled = false;
+        document.getElementById('saveRoomBtn').innerText = 'Lưu phòng';
     },
 
     openEditModal(id) {
+        // Đóng preview modal trước nếu đang mở
+        this.closeModals();
+        
         const room = this.rooms.find(r => r.id === id);
         if (!room) return;
 
-        document.getElementById('modalTitle').innerText = 'Chỉnh sửa phòng';
-        document.getElementById('roomIdInput').value = room.id;
-        document.getElementById('roomName').value = room.name;
-        document.getElementById('roomPrice').value = room.price;
-        document.getElementById('roomArea').value = room.area;
-        document.getElementById('roomType').value = room.type;
-        document.getElementById('roomStatus').value = room.status;
+        setTimeout(() => {
+            document.getElementById('modalTitle').innerText = 'Chỉnh sửa phòng';
+            document.getElementById('roomIdInput').value = room.id;
+            document.getElementById('roomName').value = room.name;
+            document.getElementById('roomPrice').value = room.price;
+            document.getElementById('roomArea').value = room.area;
+            document.getElementById('roomType').value = room.type;
+            document.getElementById('roomStatus').value = room.status;
 
-        document.getElementById('roomModal').classList.add('active');
+            document.getElementById('roomModal').classList.add('active');
+        }, 100); // Wait for fadeout
     },
 
-    openMediaModal(id) {
-        document.getElementById('mediaRoomId').value = id;
-        document.getElementById('imageForm').reset();
-        document.getElementById('videoForm').reset();
-        document.getElementById('mediaModal').classList.add('active');
+    openPreviewModal(id) {
+        const room = this.rooms.find(r => r.id === id);
+        if (!room) return;
+
+        document.getElementById('previewName').innerText = room.name;
+        document.getElementById('previewPrice').innerText = `${room.price.toLocaleString('vi-VN')} VNĐ`;
+        document.getElementById('previewArea').innerText = `${room.area} m²`;
+        document.getElementById('previewType').innerText = room.type;
+        
+        const badge = document.getElementById('previewStatus');
+        badge.innerText = room.status;
+        badge.className = `status-badge status-${room.status}`;
+
+        // Render Media
+        const gallery = document.getElementById('previewGallery');
+        gallery.innerHTML = '';
+        
+        if (room.medias && room.medias.length > 0) {
+            room.medias.forEach(media => {
+                if (media.type === 'IMAGE') {
+                    gallery.innerHTML += `<img src="${media.url}" class="media-item">`;
+                } else if (media.type === 'VIDEO') {
+                    // Đơn giản hóa: Hiện link. Có thể đổi thành iframe youtube sau
+                    gallery.innerHTML += `
+                        <div class="media-item" style="background:#333; display:flex; align-items:center; justify-content:center; color:white;">
+                            <a href="${media.url}" target="_blank" style="color:white; text-decoration:none;"><i class='bx bx-play-circle' style="font-size:3rem"></i></a>
+                        </div>
+                    `;
+                }
+            });
+        } else {
+            gallery.innerHTML = `<div style="grid-column: span 2; display:flex; align-items:center; justify-content:center; color:#6b7280; font-size:4rem;"><i class='bx bx-image'></i></div>`;
+        }
+
+        // Setup Buttons
+        document.getElementById('btnEditRoom').onclick = () => this.openEditModal(room.id);
+        document.getElementById('btnDeleteRoom').onclick = () => this.deleteRoom(room.id);
+
+        document.getElementById('previewModal').classList.add('active');
     },
 
     closeModals() {
-        document.getElementById('roomModal').classList.remove('active');
-        document.getElementById('mediaModal').classList.remove('active');
-    },
-
-    switchMediaTab(type) {
-        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-
-        if (type === 'image') {
-            document.querySelectorAll('.tab-btn')[0].classList.add('active');
-            document.getElementById('tabImage').classList.add('active');
-        } else {
-            document.querySelectorAll('.tab-btn')[1].classList.add('active');
-            document.getElementById('tabVideo').classList.add('active');
-        }
+        document.querySelectorAll('.modal-overlay').forEach(el => el.classList.remove('active'));
     },
 
     async handleRoomSubmit(e) {
         e.preventDefault();
+        const btn = document.getElementById('saveRoomBtn');
+        btn.disabled = true;
+        btn.innerText = 'Đang xử lý...';
         
         const id = document.getElementById('roomIdInput').value;
         const data = {
@@ -127,6 +154,7 @@ const app = {
         };
 
         try {
+            // Bước 1: Lưu Room
             let res;
             if (id) {
                 res = await api.updateRoom(id, data);
@@ -134,55 +162,37 @@ const app = {
                 res = await api.createRoom(data);
             }
 
-            if (res.success) {
-                this.showToast(id ? 'Cập nhật thành công!' : 'Tạo phòng thành công!', 'success');
-                this.closeModals();
-                this.loadRooms();
-            } else {
-                this.showToast(res.message || 'Có lỗi xảy ra', 'error');
+            if (!res.success) {
+                this.showToast(res.message || 'Lỗi lưu phòng', 'error');
+                btn.disabled = false;
+                btn.innerText = 'Lưu phòng';
+                return;
             }
+
+            const roomId = id || res.data.id; // Nếu tạo mới, lấy ID từ response
+
+            // Bước 2: Tải lên Ảnh
+            const files = document.getElementById('roomImages').files;
+            if (files && files.length > 0) {
+                this.showToast('Đang tải ảnh lên...', 'success');
+                for (let i = 0; i < files.length; i++) {
+                    await api.uploadImage(roomId, files[i]);
+                }
+            }
+
+            // Bước 3: Lưu Video URL
+            const videoUrl = document.querySelector('.video-url-input').value;
+            if (videoUrl && videoUrl.trim() !== '') {
+                await api.addVideo(roomId, videoUrl.trim());
+            }
+
+            this.showToast('Thao tác thành công!', 'success');
+            this.closeModals();
+            this.loadRooms();
         } catch (err) {
             this.showToast('Lỗi kết nối', 'error');
-        }
-    },
-
-    async handleImageUpload(e) {
-        e.preventDefault();
-        const id = document.getElementById('mediaRoomId').value;
-        const fileInput = document.getElementById('roomImage');
-        
-        if (fileInput.files.length === 0) return;
-
-        try {
-            const res = await api.uploadImage(id, fileInput.files[0]);
-            if (res.success) {
-                this.showToast('Tải ảnh lên thành công', 'success');
-                this.closeModals();
-                this.loadRooms();
-            } else {
-                this.showToast(res.message, 'error');
-            }
-        } catch (err) {
-            this.showToast('Lỗi kết nối', 'error');
-        }
-    },
-
-    async handleVideoSubmit(e) {
-        e.preventDefault();
-        const id = document.getElementById('mediaRoomId').value;
-        const url = document.getElementById('videoUrl').value;
-
-        try {
-            const res = await api.addVideo(id, url);
-            if (res.success) {
-                this.showToast('Thêm link video thành công', 'success');
-                this.closeModals();
-                this.loadRooms();
-            } else {
-                this.showToast(res.message, 'error');
-            }
-        } catch (err) {
-            this.showToast('Lỗi kết nối', 'error');
+            btn.disabled = false;
+            btn.innerText = 'Lưu phòng';
         }
     },
 
@@ -193,6 +203,7 @@ const app = {
             const res = await api.deleteRoom(id);
             if (res.success) {
                 this.showToast('Đã xóa phòng', 'success');
+                this.closeModals();
                 this.loadRooms();
             } else {
                 this.showToast(res.message, 'error');
