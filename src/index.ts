@@ -14,8 +14,6 @@ const PORT = process.env.PORT || 3000;
 // Middlewares
 app.use(cors());
 app.use(express.json());
-app.use('/uploads', express.static('public/uploads'));
-
 // Swagger Options
 const swaggerOptions = {
   swaggerDefinition: {
@@ -41,8 +39,9 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 // Routes
 app.use('/api/rooms', roomRoutes);
 
-// Serve static files for frontend UI
-app.use(express.static('public'));
+// Phục vụ thư mục Frontend và Uploads
+app.use(express.static(path.join(__dirname, '../public')));
+app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 
 
 // Bắt đầu server
