@@ -115,7 +115,7 @@ export const createRoom = async (req: Request, res: Response) => {
         area,
         type,
         status: status || 'Available',
-        contracts: status === 'Occupied' ? {
+        contracts: status === 'Occupied' && tenantName ? {
           create: {
             tenantName,
             tenantCount: tenantCount || 1,
@@ -249,8 +249,7 @@ export const bulkGenerateRooms = async (req: Request, res: Response) => {
     }
 
     const result = await prisma.room.createMany({
-      data: roomsToCreate,
-      skipDuplicates: true,
+      data: roomsToCreate
     });
 
     res.status(201).json({ success: true, message: `Tạo ${result.count} phòng thành công.` });
