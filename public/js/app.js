@@ -2,6 +2,7 @@ const app = {
     rooms: [],
 
     async init() {
+        this.updateGreeting();
         await this.loadRooms();
 
         // Event listener cho dropdown Trạng thái phòng
@@ -35,6 +36,29 @@ const app = {
                 }
             });
         });
+    },
+
+    updateGreeting() {
+        const hour = new Date().getHours();
+        let greeting = 'Chào bạn';
+        let icon = "<i class='bx bx-sun'></i>";
+        
+        if (hour >= 5 && hour < 12) {
+            greeting = 'Chào buổi sáng';
+            icon = "<i class='bx bx-sun'></i>";
+        } else if (hour >= 12 && hour < 18) {
+            greeting = 'Chào buổi chiều';
+            icon = "<i class='bx bx-cloud'></i>";
+        } else {
+            greeting = 'Chào buổi tối';
+            icon = "<i class='bx bx-moon'></i>";
+        }
+
+        const userName = 'Admin'; // Hardcoded for now, can be fetched from profile
+        const greetingElement = document.getElementById('greetingTitle');
+        if (greetingElement) {
+            greetingElement.innerHTML = `${greeting} ${icon} ${userName}!`;
+        }
     },
 
     async loadRooms() {
