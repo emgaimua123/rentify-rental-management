@@ -19,11 +19,12 @@
                 <i class='bx bxs-home-smile'></i>
                 <h2>Rentify.</h2>
             </div>
-            <nav class="menu">
-                <a href="#" id="menuOverview" class="active" onclick="app.switchTab('roomDashboard')"><i class='bx bx-grid-alt'></i> Tổng quan</a>
-                <a href="#" id="menuRooms" onclick="app.switchTab('roomDashboard')"><i class='bx bx-building-house'></i> Danh sách phòng</a>
-                <a href="#" id="menuBills" onclick="app.switchTab('billDashboard')"><i class='bx bx-receipt'></i> Hóa đơn</a>
-                <a href="#" id="menuSettings"><i class='bx bx-cog'></i> Cài đặt</a>
+            <nav class="menu" id="sidebarMenu">
+                <a href="#" data-section="appSectionOverview"><i class='bx bx-grid-alt'></i> Tổng quan</a>
+                <a href="#" class="active" data-section="appSectionRoomList"><i class='bx bx-building-house'></i> Danh sách phòng</a>
+                <a href="#" data-section="appSectionBill"><i class='bx bx-receipt'></i> Hóa đơn</a>
+                <a href="#" data-section="appSectionContract"><i class='bx bx-file'></i> Hợp đồng</a>
+                <a href="#" data-section="appSectionSettings"><i class='bx bx-cog'></i> Cài đặt</a>
             </nav>
         </aside>
 
@@ -56,7 +57,7 @@
                 </div>
             </div>
 
-            <div id="billDashboard" style="display: none;">
+            <div id="appSectionBill" class="app-section" style="display: none;">
                 <div class="dashboard-header">
                     <div>
                         <h1>Quản lý Hóa đơn</h1>
