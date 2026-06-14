@@ -39,7 +39,9 @@ app.get('/', (req: Request, res: Response) => {
   res.send('Welcome to Rentify API');
 });
 
-// App Routes will go here
+// App Routes
+import roomRoutes from './modules/room/room.routes';
+app.use('/api/rooms', roomRoutes);
 
 app.listen(port, () => {
   console.log(`[server]: Server is running at http://localhost:${port}`);
