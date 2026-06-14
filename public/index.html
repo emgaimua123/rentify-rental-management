@@ -22,7 +22,8 @@
             <nav class="menu" id="sidebarMenu">
                 <a href="#" data-section="appSectionOverview"><i class='bx bx-grid-alt'></i> Tổng quan</a>
                 <a href="#" class="active" data-section="appSectionRoomList"><i class='bx bx-building-house'></i> Danh sách phòng</a>
-                <a href="#" data-section="appSectionContract"><i class='bx bx-receipt'></i> Hợp đồng</a>
+                <a href="#" data-section="appSectionBill"><i class='bx bx-receipt'></i> Hóa đơn</a>
+                <a href="#" data-section="appSectionContract"><i class='bx bx-file'></i> Hợp đồng</a>
                 <a href="#" data-section="appSectionSettings"><i class='bx bx-cog'></i> Cài đặt</a>
             </nav>
         </aside>
@@ -107,6 +108,31 @@
                 <!-- Room Grid -->
                 <div class="room-grid" id="roomGrid">
                     <!-- Cards will be dynamically injected here by JS -->
+                </div>
+            </div>
+
+            <div id="appSectionBill" class="app-section" style="display: none;">
+                <div class="dashboard-header">
+                    <div>
+                        <h1>Quản lý Hóa đơn</h1>
+                        <p>Tạo hóa đơn và thiết lập giá dịch vụ.</p>
+                    </div>
+                    <div style="display: flex; gap: 1rem;">
+                        <button class="btn-danger" id="btnDeleteSelectedBills" style="display:none;" onclick="billApp.deleteSelectedBills()">
+                            <i class='bx bx-trash'></i> Xóa mục đã chọn (<span id="selectedBillCount">0</span>)
+                        </button>
+                        <button class="btn-secondary" onclick="billApp.openPresetModal()">
+                            <i class='bx bx-slider-alt'></i> Điều chỉnh giá
+                        </button>
+                        <button class="btn-primary" onclick="billApp.openBillModal()">
+                            <i class='bx bx-receipt'></i> Tạo hóa đơn mới
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Bill Grid -->
+                <div class="room-grid" id="billGrid">
+                    <!-- Bill cards will be injected here -->
                 </div>
             </div>
             
@@ -347,11 +373,247 @@
         </div>
     </div>
 
+    <!-- Modal: Điều chỉnh giá (Presets) -->
+    <div class="modal-overlay" id="pricePresetModal">
+        <div class="modal-card modal-lg">
+            <div class="modal-header">
+                <h3>Điều chỉnh giá (Presets)</h3>
+                <button class="btn-close" onclick="billApp.closeModals()"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="preset-list-container" style="margin-bottom: 1.5rem;">
+                    <div class="form-section-title">Danh sách Preset đã lưu</div>
+                    <div id="presetList" style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom: 1rem;">
+                        <!-- Presets injected here -->
+                    </div>
+                </div>
+                
+                <form id="presetForm" onsubmit="billApp.savePreset(event)">
+                    <input type="hidden" id="presetId">
+                    <div class="form-section-title">Tạo / Sửa Preset</div>
+                    <div class="form-group">
+                        <label>Tên Preset</label>
+                        <input type="text" id="presetName" required placeholder="VD: Gói tiêu chuẩn 2026">
+                    </div>
+                    <div class="form-group-row">
+                        <div class="form-group">
+                            <label>Giá 1 số điện (VNĐ)</label>
+                            <input type="number" id="presetElectricPrice" required value="3500">
+                        </div>
+                        <div class="form-group">
+                            <label>Giá 1 khối nước (VNĐ)</label>
+                            <input type="number" id="presetWaterPrice" required value="20000">
+                        </div>
+                    </div>
+                    <div class="form-group-row">
+                        <div class="form-group">
+                            <label>Phí quản lý (VNĐ/tháng)</label>
+                            <input type="number" id="presetManagementFee" required value="100000">
+                        </div>
+                        <div class="form-group">
+                            <label>Tiền Internet (VNĐ/tháng)</label>
+                            <input type="number" id="presetInternetFee" required value="100000">
+                        </div>
+                        <div class="form-group">
+                            <label>Phí gửi 1 xe (VNĐ/tháng)</label>
+                            <input type="number" id="presetParkingFee" required value="100000">
+                        </div>
+                    </div>
+                    <div class="modal-footer" style="margin-top: 1rem; display:flex; justify-content:flex-end; gap:0.5rem;">
+                        <button type="button" class="btn-secondary" onclick="billApp.resetPresetForm()">Tạo mới trắng</button>
+                        <button type="submit" class="btn-primary">Lưu Preset</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Tạo hóa đơn mới -->
+    <div class="modal-overlay" id="billModal">
+        <div class="modal-card modal-xl">
+            <div class="modal-header">
+                <h3>Tạo hóa đơn mới</h3>
+                <button class="btn-close" onclick="billApp.closeModals()"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="modal-body" style="padding: 0;">
+                <div class="bill-split-layout">
+                    <!-- Left: Form -->
+                    <div class="bill-form-side">
+                        <div class="form-group">
+                            <label>Chọn phòng (Đang thuê)</label>
+                            <select id="billRoomSelect" required onchange="billApp.onRoomSelect()">
+                                <option value="">-- Chọn phòng --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Chọn Preset giá (Tùy chọn)</label>
+                            <select id="billPresetSelect" onchange="billApp.onPresetSelect()">
+                                <option value="">-- Tự nhập tay --</option>
+                            </select>
+                        </div>
+
+                        <div class="form-section-title">Điện</div>
+                        <div class="form-group-row">
+                            <div class="form-group">
+                                <label>Số điện tiêu thụ</label>
+                                <input type="number" id="billElectricNum" value="0" min="0" oninput="billApp.calculateBill()">
+                            </div>
+                            <div class="form-group">
+                                <label>Giá 1 số điện (VNĐ)</label>
+                                <input type="number" id="billElectricPrice" value="0" min="0" oninput="billApp.calculateBill()">
+                            </div>
+                        </div>
+
+                        <div class="form-section-title">Nước</div>
+                        <div class="form-group" style="flex-direction: row; align-items:center;">
+                            <input type="radio" name="waterMode" id="waterModeTotal" value="total" checked onchange="billApp.toggleWaterMode()">
+                            <label for="waterModeTotal" style="margin-right:1rem;">Nhập tổng tiền</label>
+                            <input type="radio" name="waterMode" id="waterModeVolume" value="volume" onchange="billApp.toggleWaterMode()">
+                            <label for="waterModeVolume">Nhập theo khối</label>
+                        </div>
+                        <div class="form-group" id="waterTotalDiv">
+                            <label>Tổng tiền nước (VNĐ)</label>
+                            <input type="number" id="billWaterTotal" value="0" min="0" oninput="billApp.calculateBill()">
+                        </div>
+                        <div class="form-group-row" id="waterVolumeDiv" style="display:none;">
+                            <div class="form-group">
+                                <label>Số khối nước</label>
+                                <input type="number" id="billWaterVolume" value="0" min="0" oninput="billApp.calculateBill()">
+                            </div>
+                            <div class="form-group">
+                                <label>Giá 1 khối (VNĐ)</label>
+                                <input type="number" id="billWaterPrice" value="0" min="0" oninput="billApp.calculateBill()">
+                            </div>
+                        </div>
+
+                        <div class="form-section-title">Các dịch vụ khác</div>
+                        
+                        <div class="service-checkbox-group">
+                            <div class="service-checkbox-header">
+                                <input type="checkbox" id="chkManagement" onchange="billApp.calculateBill()">
+                                <label for="chkManagement">Phí quản lý</label>
+                            </div>
+                            <div class="form-group service-input">
+                                <input type="number" id="billManagementFee" placeholder="Giá tiền" oninput="billApp.calculateBill()">
+                            </div>
+                        </div>
+
+                        <div class="service-checkbox-group">
+                            <div class="service-checkbox-header">
+                                <input type="checkbox" id="chkInternet" onchange="billApp.calculateBill()">
+                                <label for="chkInternet">Tiền Internet</label>
+                            </div>
+                            <div class="form-group service-input">
+                                <input type="number" id="billInternetFee" placeholder="Giá tiền" oninput="billApp.calculateBill()">
+                            </div>
+                        </div>
+
+                        <div class="service-checkbox-group">
+                            <div class="service-checkbox-header">
+                                <input type="checkbox" id="chkParking" onchange="billApp.calculateBill()">
+                                <label for="chkParking">Phí gửi xe</label>
+                            </div>
+                            <div class="form-group-row service-input">
+                                <div class="form-group">
+                                    <input type="number" id="billParkingCount" placeholder="Số lượng xe" min="1" value="1" oninput="billApp.calculateBill()">
+                                </div>
+                                <div class="form-group">
+                                    <input type="number" id="billParkingFee" placeholder="Giá 1 xe" oninput="billApp.calculateBill()">
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Right: Preview -->
+                    <div class="bill-preview-side">
+                        <div class="bill-paper" id="billPaperPreview">
+                            <h2 style="text-align:center; color:var(--primary-color); margin-bottom:0.5rem;">HÓA ĐƠN TIỀN NHÀ</h2>
+                            <p style="text-align:center; color:var(--text-muted); margin-bottom:1.5rem; font-size:0.875rem;" id="bpMonth">Tháng ... Năm ...</p>
+                            
+                            <div style="margin-bottom: 1rem; border-bottom: 1px dashed var(--border-color); padding-bottom: 1rem;">
+                                <div><strong>Phòng:</strong> <span id="bpRoomName">...</span></div>
+                                <div><strong>Người thuê:</strong> <span id="bpTenantName">...</span></div>
+                            </div>
+
+                            <table class="bill-table">
+                                <tbody>
+                                    <tr>
+                                        <td>Tiền phòng</td>
+                                        <td style="text-align:right" id="bpRoomPrice">0đ</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Tiền điện <br><small id="bpElectricDesc" style="color:var(--text-muted)">0 số x 0đ</small></td>
+                                        <td style="text-align:right" id="bpElectricTotal">0đ</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Tiền nước <br><small id="bpWaterDesc" style="color:var(--text-muted)"></small></td>
+                                        <td style="text-align:right" id="bpWaterTotal">0đ</td>
+                                    </tr>
+                                    <tr id="trManagement" style="display:none;">
+                                        <td>Phí quản lý</td>
+                                        <td style="text-align:right" id="bpManagementFee">0đ</td>
+                                    </tr>
+                                    <tr id="trInternet" style="display:none;">
+                                        <td>Tiền Internet</td>
+                                        <td style="text-align:right" id="bpInternetFee">0đ</td>
+                                    </tr>
+                                    <tr id="trParking" style="display:none;">
+                                        <td>Phí gửi xe <br><small id="bpParkingDesc" style="color:var(--text-muted)">0 xe x 0đ</small></td>
+                                        <td style="text-align:right" id="bpParkingTotal">0đ</td>
+                                    </tr>
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td style="font-weight:700; font-size:1.125rem;">TỔNG CỘNG</td>
+                                        <td style="text-align:right; font-weight:700; font-size:1.25rem; color:var(--danger);" id="bpGrandTotal">0đ</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+
+                            <div style="margin-top: 1.5rem; text-align: center; border-top: 1px dashed var(--border-color); padding-top: 1rem;">
+                                <p style="font-weight:600; font-size:0.875rem; margin-bottom:0.5rem; color:var(--text-muted);">Quét mã QR để thanh toán</p>
+                                <img id="bpVietQR" src="" alt="VietQR" style="width: 150px; height: 150px; display: none; margin: 0 auto; border: 1px solid var(--border-color); border-radius: 8px;">
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 1.5rem; display:flex; justify-content:flex-end; gap:0.5rem;">
+                            <button type="button" class="btn-secondary" onclick="billApp.closeModals()">Hủy</button>
+                            <button type="button" class="btn-primary" onclick="billApp.saveBill()"><i class='bx bx-check'></i> Lưu hóa đơn</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Chi tiết Hóa đơn (View/Export) -->
+    <div class="modal-overlay" id="billDetailModal">
+        <div class="modal-card modal-lg">
+            <div class="modal-header">
+                <h3>Chi tiết Hóa đơn</h3>
+                <button class="btn-close" onclick="billApp.closeModals()"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="modal-body" style="background:#f3f4f6;">
+                <div class="bill-paper" id="billExportTarget" style="margin: 0 auto; max-width: 500px; padding: 2rem;">
+                    <!-- Will be cloned from the preview and injected here -->
+                </div>
+                <div style="margin-top: 1.5rem; display:flex; justify-content:center; gap:1rem;">
+                    <button class="btn-danger" onclick="billApp.deleteBill()"><i class='bx bx-trash'></i> Xóa hóa đơn</button>
+                    <button class="btn-primary" onclick="billApp.exportPDF()"><i class='bx bxs-file-pdf'></i> Xuất PDF</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Notification Container -->
     <div id="toastContainer" class="toast-container"></div>
 
     <!-- Scripts -->
+    <!-- html2pdf for PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="js/api.js"></script>
     <script src="js/app.js"></script>
+    <script src="js/bill.js"></script>
 </body>
 </html>
