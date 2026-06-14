@@ -86,14 +86,26 @@ const billApp = {
     },
 
     /* --- BILL CREATION --- */
-    openBillModal() {
+    async openBillModal() {
         // Reset form
-        document.getElementById('billRoomSelect').innerHTML = '<option value="">-- Chọn phòng --</option>';
+        document.getElementById('billRoomSelect').innerHTML = '<option value="">-- Đang tải phòng... --</option>';
         document.getElementById('billPresetSelect').innerHTML = '<option value="">-- Tự nhập tay --</option>';
-        
+
+        // Fetch fresh rooms from API
+        try {
+            const res = await api.getRooms();
+            if (res.success && window.app) {
+                window.app.rooms = res.data;
+            }
+        } catch(e) {}
+
         // Populate Rooms (Occupied only)
-        if (window.app && window.app.rooms) {
-            const occupiedRooms = window.app.rooms.filter(r => r.status === 'Occupied');
+        document.getElementById('billRoomSelect').innerHTML = '<option value="">-- Chọn phòng --</option>';
+        const allRooms = (window.app && window.app.rooms) ? window.app.rooms : [];
+        const occupiedRooms = allRooms.filter(r => r.status === 'Occupied');
+        if (occupiedRooms.length === 0) {
+            document.getElementById('billRoomSelect').innerHTML = '<option value="">-- Không có phòng đang thuê --</option>';
+        } else {
             occupiedRooms.forEach(r => {
                 const opt = document.createElement('option');
                 opt.value = r.id;
@@ -122,6 +134,8 @@ const billApp = {
         document.getElementById('billWaterTotal').value = '0';
         document.getElementById('billWaterVolume').value = '0';
         document.getElementById('billParkingCount').value = '1';
+        const rcField = document.getElementById('billRoomCharge');
+        if (rcField) rcField.value = '';
 
         document.getElementById('waterModeTotal').checked = true;
         this.toggleWaterMode();
@@ -131,6 +145,17 @@ const billApp = {
     },
 
     onRoomSelect() {
+        const roomId = document.getElementById('billRoomSelect').value;
+        if (roomId && window.app && window.app.rooms) {
+            const r = window.app.rooms.find(x => String(x.id) === String(roomId));
+            if (r) {
+                // Tự động điền tiền phòng từ giá phòng đã cài
+                const rcField = document.getElementById('billRoomCharge');
+                if (rcField) {
+                    rcField.value = r.price || 0;
+                }
+            }
+        }
         this.calculateBill();
     },
 
@@ -139,6 +164,7 @@ const billApp = {
         if (!pid) return;
         const p = this.presets.find(x => x.id === pid);
         if (p) {
+            // Không đụng vào tiền phòng - giữ nguyên giá phòng đã chọn
             document.getElementById('billElectricPrice').value = p.electricPrice;
             document.getElementById('billWaterPrice').value = p.waterPrice;
             document.getElementById('billManagementFee').value = p.managementFee;
@@ -169,7 +195,7 @@ const billApp = {
         let tenantName = '...';
 
         if (roomId && window.app && window.app.rooms) {
-            const r = window.app.rooms.find(x => x.id === roomId);
+            const r = window.app.rooms.find(x => String(x.id) === String(roomId));
             if (r) {
                 roomPrice = r.price || 0;
                 roomName = r.name;
@@ -179,7 +205,11 @@ const billApp = {
         
         document.getElementById('bpRoomName').innerText = roomName;
         document.getElementById('bpTenantName').innerText = tenantName;
-        document.getElementById('bpRoomPrice').innerText = roomPrice.toLocaleString('vi-VN') + 'đ';
+        
+        // Tiền phòng: đọc trực tiếp từ ô nhập
+        const finalRoomPrice = Number(document.getElementById('billRoomCharge').value) || 0;
+        document.getElementById('bpRoomPrice').innerText = finalRoomPrice.toLocaleString('vi-VN') + 'đ';
+        roomPrice = finalRoomPrice;
 
         // Electric
         const eNum = Number(document.getElementById('billElectricNum').value) || 0;

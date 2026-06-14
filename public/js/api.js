@@ -1,15 +1,24 @@
 const API_URL = '/api/rooms';
 
+const getAuthHeaders = (extraHeaders = {}) => {
+    const token = localStorage.getItem('rentify_token');
+    return {
+        ...extraHeaders,
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    };
+};
+
 const api = {
     async getRooms() {
-        const res = await fetch(API_URL);
+        const res = await fetch(API_URL, { headers: getAuthHeaders() });
+        if (res.status === 401) window.location.href = '/login.html';
         return res.json();
     },
 
     async createRoom(data) {
         const res = await fetch(API_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(data)
         });
         return res.json();
@@ -18,7 +27,7 @@ const api = {
     async updateRoom(id, data) {
         const res = await fetch(`${API_URL}/${id}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(data)
         });
         return res.json();
@@ -26,7 +35,8 @@ const api = {
 
     async deleteRoom(id) {
         const res = await fetch(`${API_URL}/${id}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: getAuthHeaders()
         });
         return res.json();
     },
@@ -37,6 +47,7 @@ const api = {
 
         const res = await fetch(`${API_URL}/${roomId}/images`, {
             method: 'POST',
+            headers: getAuthHeaders(),
             body: formData
         });
         return res.json();
@@ -45,7 +56,7 @@ const api = {
     async addVideo(roomId, url) {
         const res = await fetch(`${API_URL}/${roomId}/videos`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify({ url })
         });
         return res.json();

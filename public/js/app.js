@@ -1,9 +1,62 @@
+window.logout = () => {
+    localStorage.removeItem('rentify_token');
+    localStorage.removeItem('rentify_user');
+    window.location.reload();
+};
+
 const app = {
     originalRooms: [],
     rooms: [],
     currentSort: 'default',
+    captchaCode: '',
 
     async init() {
+        if (!localStorage.getItem('rentify_token')) {
+            document.getElementById('landingPage').style.display = 'flex';
+            document.getElementById('appContainer').style.display = 'none';
+            if (window.i18n) window.i18n.init();
+            return;
+        }
+        document.getElementById('landingPage').style.display = 'none';
+        document.getElementById('appContainer').style.display = 'flex';
+        
+        // Theme init
+        const savedTheme = localStorage.getItem('rentify_theme') || 'light';
+        if (savedTheme === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+        }
+        document.getElementById('themeToggleBtn').addEventListener('click', () => {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            if (currentTheme === 'dark') {
+                document.documentElement.removeAttribute('data-theme');
+                localStorage.setItem('rentify_theme', 'light');
+            } else {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                localStorage.setItem('rentify_theme', 'dark');
+            }
+        });
+
+        // Language init
+        window.addEventListener('languageChanged', () => {
+            this.renderRooms();
+            this.updateGreeting();
+        });
+        
+        // initialize i18n
+        if (window.i18n) {
+            window.i18n.init();
+        }
+        
+        // Cập nhật thông tin User trên Topbar
+        try {
+            const userStr = localStorage.getItem('rentify_user');
+            if (userStr) {
+                const u = JSON.parse(userStr);
+                if (u.avatar) document.getElementById('topbarAvatar').src = u.avatar;
+                if (u.name) document.getElementById('topbarName').textContent = u.name;
+            }
+        } catch(e) {}
+
         this.updateGreeting();
         await this.loadRooms();
 
@@ -65,6 +118,11 @@ const app = {
         const userName = 'Admin'; // Hardcoded for now, can be fetched from profile
         const greetingElement = document.getElementById('greetingTitle');
         if (greetingElement) {
+            if (window.i18n && window.i18n.lang === 'en') {
+                if (hour >= 5 && hour < 12) greeting = 'Good morning';
+                else if (hour >= 12 && hour < 18) greeting = 'Good afternoon';
+                else greeting = 'Good evening';
+            }
             greetingElement.innerHTML = `${greeting} ${icon} ${userName}!`;
         }
     },
@@ -154,7 +212,7 @@ const app = {
                 <div class="room-img-container">
                     <input type="checkbox" class="room-checkbox" data-id="${room.id}" onclick="event.stopPropagation(); app.updateSelection()" style="position: absolute; top: 10px; left: 10px; z-index: 10; width: 20px; height: 20px; cursor: pointer;">
                     ${imgHTML}
-                    <div class="status-badge status-${room.status}">${room.status}</div>
+                    <div class="status-badge status-${room.status}">${window.i18n ? window.i18n.t('status.' + room.status) : room.status}</div>
                 </div>
                 <div class="room-info">
                     <div class="room-header">
@@ -554,10 +612,124 @@ const app = {
             toast.style.animation = 'fadeOut 0.3s forwards';
             setTimeout(() => toast.remove(), 300);
         }, 3000);
+    },
+
+    // --- AUTH LOGIC ---
+    openLoginModal() {
+        this.closeAuthModals();
+        document.getElementById('authLoginModal').classList.add('active');
+    },
+    openRegisterModal() {
+        this.closeAuthModals();
+        document.getElementById('authRegisterModal').classList.add('active');
+        this.generateCaptcha();
+    },
+    closeAuthModals() {
+        document.getElementById('authLoginModal').classList.remove('active');
+        document.getElementById('authRegisterModal').classList.remove('active');
+    },
+    generateCaptcha() {
+        const canvas = document.getElementById('captchaCanvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+        let captcha = '';
+        for (let i = 0; i < 5; i++) captcha += chars.charAt(Math.floor(Math.random() * chars.length));
+        this.captchaCode = captcha;
+        
+        // Background
+        ctx.fillStyle = '#f3f4f6';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Text
+        ctx.font = '24px Inter';
+        ctx.fillStyle = '#4f46e5';
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'center';
+        
+        // Draw with some noise
+        for (let i = 0; i < 5; i++) {
+            ctx.save();
+            ctx.translate(20 + i * 20, 20);
+            const rot = (Math.random() - 0.5) * 0.4;
+            ctx.rotate(rot);
+            ctx.fillText(captcha[i], 0, 0);
+            ctx.restore();
+        }
+    },
+    async handleLogin(e) {
+        e.preventDefault();
+        const username = document.getElementById('loginUsername').value;
+        const password = document.getElementById('loginPassword').value;
+        
+        try {
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            if (data.success) {
+                localStorage.setItem('rentify_token', data.data.token);
+                localStorage.setItem('rentify_user', JSON.stringify(data.data));
+                window.location.reload();
+            } else {
+                this.showToast(data.message, 'error');
+            }
+        } catch (err) {
+            this.showToast('Lỗi kết nối', 'error');
+        }
+    },
+    async handleRegister(e) {
+        e.preventDefault();
+        const username = document.getElementById('regUsername').value;
+        const password = document.getElementById('regPassword').value;
+        const email = document.getElementById('regEmail').value;
+        const captchaInput = document.getElementById('regCaptcha').value;
+
+        if (captchaInput.toLowerCase() !== this.captchaCode.toLowerCase()) {
+            this.showToast('Mã CAPTCHA không chính xác!', 'error');
+            this.generateCaptcha();
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password, email, name: username })
+            });
+            const data = await res.json();
+            if (data.success) {
+                localStorage.setItem('rentify_token', data.data.token);
+                localStorage.setItem('rentify_user', JSON.stringify(data.data));
+                
+                // Show profile required popup
+                this.closeAuthModals();
+                document.getElementById('landingPage').style.display = 'none';
+                document.getElementById('appContainer').style.display = 'flex';
+                document.getElementById('profileRequiredModal').classList.add('active');
+                
+                // Initialize app to load sidebar and layout
+                this.init();
+            } else {
+                this.showToast(data.message, 'error');
+            }
+        } catch (err) {
+            this.showToast('Lỗi kết nối', 'error');
+        }
+    },
+    goToProfile() {
+        document.getElementById('profileRequiredModal').classList.remove('active');
+        document.querySelector('[data-section="appSectionSettings"]').click();
+        this.showToast('Mời bạn cập nhật hồ sơ cá nhân.', 'success');
     }
 };
 
 // Khởi tạo app
+window.app = app;
 document.addEventListener('DOMContentLoaded', () => {
     app.init();
 });

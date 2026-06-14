@@ -12,7 +12,145 @@
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <div class="app-container">
+    <!-- Landing Page (Shown when no token) -->
+    <div id="landingPage" class="landing-page" style="display: none;">
+        <div class="landing-overlay"></div>
+        <div class="landing-header">
+            <div class="landing-logo">
+                <i class='bx bxs-home-smile'></i>
+                <h2>Rentify.</h2>
+            </div>
+            <div class="landing-auth-buttons" style="display: flex; align-items: center; gap: 1rem;">
+                <!-- Language Switcher for Landing -->
+                <div class="lang-switch" style="display: flex; gap: 0.5rem; margin-right: 1rem;">
+                    <img src="https://flagcdn.com/24x18/vn.png" alt="VI" id="langViBtnLanding" style="cursor: pointer; opacity: 1; border-radius: 2px;" onclick="i18n.setLanguage('vi')">
+                    <img src="https://flagcdn.com/24x18/gb.png" alt="EN" id="langEnBtnLanding" style="cursor: pointer; opacity: 0.5; border-radius: 2px;" onclick="i18n.setLanguage('en')">
+                </div>
+                <button class="btn-text" data-i18n="landing.login" onclick="app.openLoginModal()">Đăng nhập</button>
+                <button class="btn-text" data-i18n="landing.register" onclick="app.openRegisterModal()">Đăng ký</button>
+            </div>
+        </div>
+        <div class="landing-content">
+            <h1 class="landing-title" data-i18n="landing.title">Quản lý trọ dễ dàng hơn bao giờ hết</h1>
+            <p class="landing-desc" data-i18n="landing.desc">Nền tảng quản lý phòng trọ toàn diện, hiện đại, và nhanh chóng. Bắt đầu ngay hôm nay để trải nghiệm sự khác biệt.</p>
+            <button class="btn-primary btn-large" onclick="app.openRegisterModal()"><span data-i18n="landing.start">Bắt đầu ngay</span> <i class='bx bx-right-arrow-alt'></i></button>
+        </div>
+    </div>
+
+    <!-- Auth Modals -->
+    <div class="modal-overlay" id="authLoginModal">
+        <div class="modal-card auth-modal">
+            <div class="modal-header">
+                <h3 data-i18n="auth.login">Đăng nhập</h3>
+                <button class="btn-close" onclick="app.closeAuthModals()"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="loginForm" onsubmit="app.handleLogin(event)">
+                    <div class="form-group">
+                        <label data-i18n="auth.username">Tên đăng nhập</label>
+                        <input type="text" id="loginUsername" required>
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="auth.password">Mật khẩu</label>
+                        <input type="password" id="loginPassword" required>
+                    </div>
+                    <button type="submit" class="btn-primary" style="width: 100%; margin-top: 1rem;" data-i18n="auth.login_btn">Đăng nhập</button>
+                    <p style="text-align: center; margin-top: 1rem; font-size: 0.875rem;">
+                        <span data-i18n="auth.no_account">Chưa có tài khoản?</span> <a href="#" onclick="app.openRegisterModal()" style="color: var(--primary-color);" data-i18n="auth.register_now">Đăng ký ngay</a>
+                    </p>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="authRegisterModal">
+        <div class="modal-card auth-modal">
+            <div class="modal-header">
+                <h3 data-i18n="auth.register">Đăng ký</h3>
+                <button class="btn-close" onclick="app.closeAuthModals()"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="registerForm" onsubmit="app.handleRegister(event)">
+                    <div class="form-group">
+                        <label data-i18n="auth.username">Tên đăng nhập</label>
+                        <input type="text" id="regUsername" required>
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="auth.email">Email</label>
+                        <input type="email" id="regEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="auth.password">Mật khẩu</label>
+                        <input type="password" id="regPassword" required>
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="auth.captcha">Xác minh CAPTCHA</label>
+                        <div style="display: flex; gap: 1rem; margin-bottom: 0.5rem;">
+                            <canvas id="captchaCanvas" width="120" height="40" style="border: 1px solid var(--border-color); border-radius: 4px;"></canvas>
+                            <button type="button" class="btn-secondary" onclick="app.generateCaptcha()"><i class='bx bx-refresh'></i></button>
+                        </div>
+                        <input type="text" id="regCaptcha" placeholder="Nhập mã bên trên" required>
+                    </div>
+                    <button type="submit" class="btn-primary" style="width: 100%; margin-top: 1rem;" data-i18n="auth.register_btn">Đăng ký</button>
+                    <p style="text-align: center; margin-top: 1rem; font-size: 0.875rem;">
+                        <span data-i18n="auth.has_account">Đã có tài khoản?</span> <a href="#" onclick="app.openLoginModal()" style="color: var(--primary-color);" data-i18n="auth.login_now">Đăng nhập</a>
+                    </p>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Required Modal -->
+    <div class="modal-overlay" id="profileRequiredModal" style="background: rgba(0,0,0,0.8); z-index: 9999;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 data-i18n="profile.required">Cập nhật thông tin</h3>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 1.5rem; color: var(--text-muted);" data-i18n="profile.required_desc">Vui lòng cập nhật Tên hiển thị và Avatar để tiếp tục sử dụng hệ thống.</p>
+                <form id="profileRequiredForm" onsubmit="app.handleProfileUpdate(event)">
+                    <div class="form-group">
+                        <label data-i18n="profile.name">Tên hiển thị</label>
+                        <input type="text" id="reqProfileName" required placeholder="Ví dụ: Nguyễn Văn A">
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="profile.avatar_url">Đường dẫn Avatar (Tùy chọn)</label>
+                        <input type="text" id="reqProfileAvatar" placeholder="https://...">
+                    </div>
+                    <button type="submit" class="btn-primary" style="width: 100%;" data-i18n="profile.save">Lưu thông tin</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Modal -->
+    <div class="modal-overlay" id="profileModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 data-i18n="profile.update">Cập nhật thông tin</h3>
+                <button class="btn-close" onclick="app.closeProfileModal()"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="profileForm" onsubmit="app.handleProfileUpdate(event)">
+                    <div class="form-group" style="text-align: center;">
+                        <img id="profilePreview" src="" alt="Avatar" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 1rem; border: 2px solid var(--primary-color);">
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="profile.name">Tên hiển thị</label>
+                        <input type="text" id="profileName" required>
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="profile.avatar_url">Đường dẫn Avatar (Tùy chọn)</label>
+                        <input type="text" id="profileAvatar" placeholder="https://..." oninput="document.getElementById('profilePreview').src = this.value || 'https://ui-avatars.com/api/?name=User'">
+                    </div>
+                    <button type="submit" class="btn-primary" style="width: 100%;" data-i18n="profile.save">Lưu thay đổi</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App Container -->
+    <div class="app-container" id="appContainer" style="display: none;">
         <!-- Sidebar -->
         <aside class="sidebar">
             <div class="logo">
@@ -20,11 +158,11 @@
                 <h2>Rentify.</h2>
             </div>
             <nav class="menu" id="sidebarMenu">
-                <a href="#" data-section="appSectionOverview"><i class='bx bx-grid-alt'></i> Tổng quan</a>
-                <a href="#" class="active" data-section="appSectionRoomList"><i class='bx bx-building-house'></i> Danh sách phòng</a>
-                <a href="#" data-section="appSectionBill"><i class='bx bx-receipt'></i> Hóa đơn</a>
-                <a href="#" data-section="appSectionContract"><i class='bx bx-file'></i> Hợp đồng</a>
-                <a href="#" data-section="appSectionSettings"><i class='bx bx-cog'></i> Cài đặt</a>
+                <a href="#" data-section="appSectionOverview"><i class='bx bx-grid-alt'></i> <span data-i18n="menu.overview">Tổng quan</span></a>
+                <a href="#" class="active" data-section="appSectionRoomList"><i class='bx bx-building-house'></i> <span data-i18n="menu.rooms">Danh sách phòng</span></a>
+                <a href="#" data-section="appSectionBill"><i class='bx bx-receipt'></i> <span data-i18n="menu.bills">Hóa đơn</span></a>
+                <a href="#" data-section="appSectionContract"><i class='bx bx-file'></i> <span data-i18n="menu.contracts">Hợp đồng</span></a>
+                <a href="#" onclick="logout()"><i class='bx bx-log-out'></i> <span data-i18n="menu.logout">Đăng xuất</span></a>
             </nav>
         </aside>
 
@@ -33,10 +171,22 @@
             <header class="topbar">
                 <div class="search-bar">
                     <i class='bx bx-search'></i>
-                    <input type="text" placeholder="Tìm kiếm phòng..." id="searchInput">
+                    <input type="text" placeholder="Tìm kiếm phòng..." id="searchInput" data-i18n="topbar.search">
                 </div>
-                <div class="user-profile">
-                    <img src="https://ui-avatars.com/api/?name=Admin&background=4F46E5&color=fff" alt="User">
+                <div class="topbar-actions" style="display: flex; align-items: center; gap: 1rem;">
+                    <!-- Dark Mode Switch -->
+                    <button id="themeToggleBtn" style="background:none; border:none; font-size:1.5rem; color:var(--text-color); cursor:pointer; display:flex; align-items:center;">
+                        <i class='bx bx-moon'></i>
+                    </button>
+                    <!-- Language Switcher -->
+                    <div class="lang-switch" style="display: flex; gap: 0.5rem; margin-right: 1rem; border-left: 1px solid var(--border-color); padding-left: 1rem;">
+                        <img src="https://flagcdn.com/24x18/vn.png" alt="VI" id="langViBtnTopbar" style="cursor: pointer; opacity: 1; border-radius: 2px;" onclick="i18n.setLanguage('vi')">
+                        <img src="https://flagcdn.com/24x18/gb.png" alt="EN" id="langEnBtnTopbar" style="cursor: pointer; opacity: 0.5; border-radius: 2px;" onclick="i18n.setLanguage('en')">
+                    </div>
+                    <div class="user-profile" onclick="app.openProfileModal()" style="cursor: pointer;" title="Trang cá nhân">
+                        <img id="topbarAvatar" src="https://ui-avatars.com/api/?name=User&background=4F46E5&color=fff" alt="User">
+                        <span id="topbarName" style="font-weight: 500; font-size: 0.875rem; color: var(--text-main);">User</span>
+                    </div>
                 </div>
             </header>
 
@@ -49,15 +199,15 @@
                 </div>
 
                 <div class="suggestions-container" style="margin-top: 1rem; padding: 0 2rem 2rem 2rem;">
-                    <h3 style="margin-bottom: 1rem; color: var(--text-color); font-size: 1.1rem; font-weight: 600;">Gợi ý truy cập nhanh</h3>
+                    <h3 style="margin-bottom: 1rem; color: var(--text-color); font-size: 1.1rem; font-weight: 600;" data-i18n="overview.quick_access">Gợi ý truy cập nhanh</h3>
                     <div class="suggestion-cards" style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
                         <!-- Quản lý phòng -->
                         <div class="suggestion-card" onclick="document.querySelector('[data-section=appSectionRoomList]').click()" style="--hover-border: var(--primary-color); width: 320px; background: var(--card-bg); padding: 1.5rem; border-radius: var(--radius-lg); cursor: pointer; border: 1.5px solid #D1D5DB; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; transition: all 0.2s ease;">
                             <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(79, 70, 229, 0.1); color: var(--primary-color); display: flex; align-items: center; justify-content: center; font-size: 1.75rem; margin-bottom: 1rem;">
                                 <i class='bx bx-building-house'></i>
                             </div>
-                            <h4 style="margin-bottom: 0.5rem; color: var(--text-color); font-size: 1.1rem;">Quản lý phòng trọ</h4>
-                            <p style="color: var(--text-muted); font-size: 0.875rem; line-height: 1.5;">Truy cập gần đây. Xem danh sách, thêm phòng mới và cập nhật trạng thái phòng nhanh chóng.</p>
+                            <h4 style="margin-bottom: 0.5rem; color: var(--text-color); font-size: 1.1rem;" data-i18n="overview.manage_rooms">Quản lý phòng trọ</h4>
+                            <p style="color: var(--text-muted); font-size: 0.875rem; line-height: 1.5;" data-i18n="overview.manage_rooms_desc">Truy cập gần đây. Xem danh sách, thêm phòng mới và cập nhật trạng thái phòng nhanh chóng.</p>
                         </div>
                         
                         <!-- Hợp đồng -->
@@ -65,17 +215,8 @@
                             <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(16, 185, 129, 0.1); color: #10b981; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; margin-bottom: 1rem;">
                                 <i class='bx bx-receipt'></i>
                             </div>
-                            <h4 style="margin-bottom: 0.5rem; color: var(--text-color); font-size: 1.1rem;">Quản lý Hợp đồng</h4>
-                            <p style="color: var(--text-muted); font-size: 0.875rem; line-height: 1.5;">Tạo hợp đồng thuê mới, gia hạn hoặc xem các hợp đồng sắp hết hạn trong tháng này.</p>
-                        </div>
-
-                        <!-- Cài đặt -->
-                        <div class="suggestion-card" onclick="document.querySelector('[data-section=appSectionSettings]').click()" style="--hover-border: #f59e0b; width: 320px; background: var(--card-bg); padding: 1.5rem; border-radius: var(--radius-lg); cursor: pointer; border: 1.5px solid #D1D5DB; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; transition: all 0.2s ease;">
-                            <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(245, 158, 11, 0.1); color: #f59e0b; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; margin-bottom: 1rem;">
-                                <i class='bx bx-cog'></i>
-                            </div>
-                            <h4 style="margin-bottom: 0.5rem; color: var(--text-color); font-size: 1.1rem;">Cài đặt hệ thống</h4>
-                            <p style="color: var(--text-muted); font-size: 0.875rem; line-height: 1.5;">Cấu hình tài khoản, thông báo và các thiết lập chung cho hệ thống quản lý của bạn.</p>
+                            <h4 style="margin-bottom: 0.5rem; color: var(--text-color); font-size: 1.1rem;" data-i18n="overview.manage_contracts">Quản lý Hợp đồng</h4>
+                            <p style="color: var(--text-muted); font-size: 0.875rem; line-height: 1.5;" data-i18n="overview.manage_contracts_desc">Tạo hợp đồng thuê mới, gia hạn hoặc xem các hợp đồng sắp hết hạn trong tháng này.</p>
                         </div>
                     </div>
                 </div>
@@ -452,6 +593,11 @@
                             </select>
                         </div>
 
+                        <div class="form-group">
+                            <label>Tiền phòng (VNĐ)</label>
+                            <input type="number" id="billRoomCharge" placeholder="Tự động lấy từ phòng" oninput="billApp.calculateBill()">
+                        </div>
+
                         <div class="form-section-title">Điện</div>
                         <div class="form-group-row">
                             <div class="form-group">
@@ -612,6 +758,7 @@
     <!-- Scripts -->
     <!-- html2pdf for PDF export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="js/i18n.js"></script>
     <script src="js/api.js"></script>
     <script src="js/app.js"></script>
     <script src="js/bill.js"></script>

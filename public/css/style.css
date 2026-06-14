@@ -19,6 +19,17 @@
     --radius-md: 0.5rem;
     --radius-lg: 1rem;
     --radius-xl: 1.5rem;
+    --white: #FFFFFF;
+}
+
+[data-theme="dark"] {
+    --bg-color: #111827;
+    --sidebar-bg: #1F2937;
+    --card-bg: #1F2937;
+    --text-main: #F9FAFB;
+    --text-muted: #9CA3AF;
+    --border-color: #374151;
+    --white: #1F2937;
 }
 
 * {
@@ -325,7 +336,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 100;
+    z-index: 9999;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.2s;
@@ -648,4 +659,99 @@ body {
 .preset-card:hover {
     background: var(--primary-color);
     color: white;
+}
+
+/* --- Landing Page & Modals CSS --- */
+.landing-page {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100vh;
+    background: url('../images/login-bg.jpg') center/cover no-repeat;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+}
+.landing-page::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 0;
+}
+.landing-header {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 3rem;
+}
+.landing-logo {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: white;
+    font-size: 1.5rem;
+}
+.landing-auth-buttons {
+    display: flex;
+    gap: 1rem;
+}
+.landing-auth-buttons .btn-text {
+    color: white;
+    background: transparent;
+    border: none;
+    font-size: 1rem;
+    cursor: pointer;
+    font-weight: 500;
+}
+.landing-auth-buttons .btn-text:hover {
+    text-decoration: underline;
+}
+.landing-content {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 0 2rem;
+    color: white;
+}
+.landing-title {
+    font-size: 4rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    line-height: 1.2;
+}
+.landing-desc {
+    font-size: 1.25rem;
+    max-width: 600px;
+    margin-bottom: 2rem;
+    color: rgba(255, 255, 255, 0.8);
+}
+.btn-large {
+    padding: 1rem 2.5rem;
+    font-size: 1.25rem;
+    border-radius: 3rem;
+}
+
+/* Animations */
+@keyframes scaleUp {
+    0% { transform: scale(0.9); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+@keyframes slideInTop {
+    0% { transform: translateY(-50px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+}
+
+.auth-modal {
+    background: var(--card-bg);
+    padding: 1rem;
+    border-radius: var(--radius-lg);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    color: var(--text-main);
 }

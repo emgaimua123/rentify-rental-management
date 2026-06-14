@@ -38,7 +38,10 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 app.use(express.static(path.join(__dirname, '../public')));
 
 // App Routes
+import authRoutes from './modules/auth/auth.routes';
 import roomRoutes from './modules/room/room.routes';
+
+app.use('/api/auth', authRoutes);
 app.use('/api/rooms', roomRoutes);
 
 app.listen(port, () => {

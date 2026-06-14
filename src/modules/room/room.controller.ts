@@ -5,11 +5,18 @@ import { AddVideoLinkDTO } from '../media/dtos/media.dto';
 import fs from 'fs';
 import path from 'path';
 
-// Hàm helper để map trạng thái tự động dựa trên hợp đồng
 const mapAutoStatus = (room: any) => {
-  if (room.status === 'Occupied' && room.contracts && room.contracts.length > 0) {
+  if (room.contracts && room.contracts.length > 0) {
     const currentContract = room.contracts[0]; // Vì đã order by createdAt desc
-    if (new Date(currentContract.endDate) < new Date()) {
+    if (currentContract.tenant) {
+      currentContract.tenantName = currentContract.tenant.name;
+    }
+    // So sánh ngày (bỏ phần giờ) để tránh lỗi múi giờ
+    const endDate = new Date(currentContract.endDate);
+    endDate.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (room.status === 'Occupied' && endDate < today) {
       return { ...room, status: 'Available' }; // Đã hết hạn hợp đồng
     }
   }
@@ -43,7 +50,7 @@ export const getRooms = async (req: Request, res: Response) => {
       orderBy: orderByClause as any,
       include: { 
         medias: true,
-        contracts: { orderBy: { createdAt: 'desc' }, take: 1 } 
+        contracts: { orderBy: { createdAt: 'desc' }, take: 1, include: { tenant: true } } 
       }
     });
 
@@ -75,7 +82,7 @@ export const getRoomById = async (req: Request, res: Response) => {
       where: { id: Number(id), isDeleted: false },
       include: { 
         medias: true,
-        contracts: { orderBy: { createdAt: 'desc' }, take: 1 }
+        contracts: { orderBy: { createdAt: 'desc' }, take: 1, include: { tenant: true } }
       }
     });
 
@@ -117,10 +124,10 @@ export const createRoom = async (req: Request, res: Response) => {
         status: status || 'Available',
         contracts: status === 'Occupied' && tenantName ? {
           create: {
-            tenantName,
+            tenant: { create: { name: tenantName } },
             tenantCount: tenantCount || 1,
-            startDate: new Date(startDate as string),
-            endDate: new Date(endDate as string)
+            startDate: new Date((startDate as string).includes('T') ? startDate as string : `${startDate}T12:00:00.000Z`),
+            endDate: new Date((endDate as string).includes('T') ? endDate as string : `${endDate}T12:00:00.000Z`)
           }
         } : undefined
       },
@@ -129,6 +136,9 @@ export const createRoom = async (req: Request, res: Response) => {
 
     res.status(201).json({ success: true, data: newRoom });
   } catch (error: any) {
+    if (error.code === 'P2002' && error.meta?.target?.includes('name')) {
+      return res.status(400).json({ success: false, message: 'Tên phòng này đã tồn tại, vui lòng chọn tên khác.' });
+    }
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -141,7 +151,7 @@ export const updateRoom = async (req: Request, res: Response) => {
 
     const room = await prisma.room.findFirst({
       where: { id: Number(id), isDeleted: false },
-      include: { contracts: { orderBy: { createdAt: 'desc' }, take: 1 } }
+      include: { contracts: { orderBy: { createdAt: 'desc' }, take: 1, include: { tenant: true } } }
     });
 
     if (!room) {
@@ -158,10 +168,10 @@ export const updateRoom = async (req: Request, res: Response) => {
         await prisma.contract.create({
           data: {
             roomId: room.id,
-            tenantName,
+            tenant: { create: { name: tenantName } },
             tenantCount: tenantCount || 1,
-            startDate: new Date(startDate as string),
-            endDate: new Date(endDate as string)
+            startDate: new Date((startDate as string).includes('T') ? startDate as string : `${startDate}T12:00:00.000Z`),
+            endDate: new Date((endDate as string).includes('T') ? endDate as string : `${endDate}T12:00:00.000Z`)
           }
         });
       } else {
@@ -171,10 +181,10 @@ export const updateRoom = async (req: Request, res: Response) => {
           await prisma.contract.update({
             where: { id: currentContract.id },
             data: {
-              tenantName: tenantName || currentContract.tenantName,
+              tenant: tenantName ? { update: { name: tenantName } } : undefined,
               tenantCount: tenantCount || currentContract.tenantCount,
-              startDate: startDate ? new Date(startDate as string) : currentContract.startDate,
-              endDate: endDate ? new Date(endDate as string) : currentContract.endDate
+              startDate: startDate ? new Date((startDate as string).includes('T') ? startDate as string : `${startDate}T12:00:00.000Z`) : currentContract.startDate,
+              endDate: endDate ? new Date((endDate as string).includes('T') ? endDate as string : `${endDate}T12:00:00.000Z`) : currentContract.endDate
             }
           });
         }
@@ -189,6 +199,9 @@ export const updateRoom = async (req: Request, res: Response) => {
 
     res.status(200).json({ success: true, data: updatedRoom });
   } catch (error: any) {
+    if (error.code === 'P2002' && error.meta?.target?.includes('name')) {
+      return res.status(400).json({ success: false, message: 'Tên phòng này đã tồn tại, vui lòng chọn tên khác.' });
+    }
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -200,7 +213,7 @@ export const deleteRoom = async (req: Request, res: Response) => {
     
     const room = await prisma.room.findFirst({
       where: { id: Number(id), isDeleted: false },
-      include: { contracts: { orderBy: { createdAt: 'desc' }, take: 1 } }
+      include: { contracts: { orderBy: { createdAt: 'desc' }, take: 1, include: { tenant: true } } }
     });
 
     if (!room) {
