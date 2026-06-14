@@ -1,51 +1,47 @@
-import path from 'path';
-import express from 'express';
+import express, { Express, Request, Response } from 'express';
+import dotenv from 'dotenv';
 import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
 import swaggerJsDoc from 'swagger-jsdoc';
-import dotenv from 'dotenv';
-import roomRoutes from './routes/room.routes';
+import path from 'path';
 
 dotenv.config();
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+const app: Express = express();
+const port = process.env.PORT || 3000;
 
-// Middlewares
 app.use(cors());
 app.use(express.json());
-// Swagger Options
+app.use(express.urlencoded({ extended: true }));
+app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
+
 const swaggerOptions = {
-  swaggerDefinition: {
+  definition: {
     openapi: '3.0.0',
     info: {
-      title: 'Rentify API Documentation',
+      title: 'Rentify API',
       version: '1.0.0',
-      description: 'API tài liệu cho hệ thống quản lý phòng trọ Rentify'
+      description: 'API Documentation for Rentify Rental Management System',
     },
     servers: [
       {
-        url: `http://localhost:${PORT}`
-      }
-    ]
+        url: `http://localhost:${port}`,
+      },
+    ],
   },
-  apis: ['./src/routes/*.ts']
+  apis: ['./src/modules/**/*.routes.ts'],
 };
 
 const swaggerDocs = swaggerJsDoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
+app.get('/', (req: Request, res: Response) => {
+  res.send('Welcome to Rentify API');
+});
 
-// Routes
-app.use('/api/rooms', roomRoutes);
+// App Routes will go here
 
-// Phục vụ thư mục Frontend và Uploads
-app.use(express.static(path.join(__dirname, '../public')));
-app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
-
-
-// Bắt đầu server
-app.listen(PORT, () => {
-  console.log(`Server đang chạy tại http://localhost:${PORT}`);
-  console.log(`Swagger UI có sẵn tại http://localhost:${PORT}/api-docs`);
+app.listen(port, () => {
+  console.log(`[server]: Server is running at http://localhost:${port}`);
+  console.log(`[swagger]: API Docs available at http://localhost:${port}/api-docs`);
 });
