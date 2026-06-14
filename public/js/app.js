@@ -15,6 +15,22 @@ const app = {
         });
     },
 
+    switchTab(tabId) {
+        document.getElementById('roomDashboard').style.display = 'none';
+        document.getElementById('billDashboard').style.display = 'none';
+        
+        document.getElementById(tabId).style.display = 'block';
+
+        // Update active class on menu
+        document.querySelectorAll('.menu a').forEach(el => el.classList.remove('active'));
+        if (tabId === 'roomDashboard') {
+            document.getElementById('menuOverview').classList.add('active');
+        } else if (tabId === 'billDashboard') {
+            document.getElementById('menuBills').classList.add('active');
+            if(window.billApp) window.billApp.renderBills();
+        }
+    },
+
     async loadRooms() {
         try {
             const res = await api.getRooms();

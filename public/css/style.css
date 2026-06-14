@@ -565,3 +565,81 @@ body {
         height: 300px;
     }
 }
+
+/* --- BILL MODULE STYLES --- */
+.bill-split-layout {
+    display: flex;
+    min-height: 600px;
+}
+.bill-form-side {
+    flex: 1;
+    padding: 1.5rem;
+    border-right: 1px solid var(--border-color);
+    background: #FAFAFA;
+}
+.bill-preview-side {
+    flex: 1;
+    padding: 1.5rem;
+    background: var(--bg-color);
+    display: flex;
+    flex-direction: column;
+}
+
+.service-checkbox-group {
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+.service-checkbox-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+.service-input {
+    margin-bottom: 0;
+    padding-left: 1.5rem;
+}
+
+/* Bill Paper (Receipt) Style */
+.bill-paper {
+    background: white;
+    padding: 2rem;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color);
+    font-family: 'Courier New', Courier, monospace;
+}
+.bill-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+.bill-table td {
+    padding: 0.75rem 0;
+    border-bottom: 1px dashed var(--border-color);
+}
+.bill-table tr:last-child td {
+    border-bottom: none;
+}
+.bill-table tfoot td {
+    border-top: 2px solid var(--text-main);
+    padding-top: 1rem;
+}
+
+.preset-card {
+    border: 1px solid var(--primary-color);
+    background: #EEF2FF;
+    padding: 0.5rem 1rem;
+    border-radius: 2rem;
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--primary-color);
+}
+.preset-card:hover {
+    background: var(--primary-color);
+    color: white;
+}
