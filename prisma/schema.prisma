@@ -9,7 +9,7 @@ datasource db {
 
 model Room {
   id        Int        @id @default(autoincrement())
-  name      String
+  name      String     @unique // corresponds to room_number in python
   price     Float
   area      Float?
   type      String
@@ -21,6 +21,8 @@ model Room {
   // Relations
   contracts Contract[]
   medias    RoomMedia[]
+  utilityRecords UtilityRecord[]
+  invoices       Invoice[]
 }
 
 model RoomMedia {
@@ -32,15 +34,57 @@ model RoomMedia {
   createdAt DateTime @default(now())
 }
 
-model Contract {
-  id        Int      @id @default(autoincrement())
-  roomId    Int
-  tenantName String
-  tenantCount Int?   @default(1)
-  startDate DateTime
-  endDate   DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model Tenant {
+  id            Int      @id @default(autoincrement())
+  name          String
+  phone         String?
+  email         String?  @unique
+  identityCard  String?  @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  room      Room     @relation(fields: [roomId], references: [id], onDelete: Restrict) // Bắt lỗi khóa ngoại nếu xóa Room đang có Contract
+  contracts     Contract[]
+}
+
+model Contract {
+  id            Int      @id @default(autoincrement())
+  roomId        Int
+  tenantId      Int
+  startDate     DateTime
+  endDate       DateTime
+  depositAmount Float?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  room          Room     @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+}
+
+model UtilityRecord {
+  id              Int      @id @default(autoincrement())
+  roomId          Int
+  recordMonth     String   // e.g. "2023-10"
+  electricityOld  Int?
+  electricityNew  Int?
+  waterOld        Int?
+  waterNew        Int?
+  createdAt       DateTime @default(now())
+
+  room            Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+}
+
+model Invoice {
+  id                Int      @id @default(autoincrement())
+  roomId            Int
+  invoiceMonth      String   // e.g. "2023-10"
+  roomCharge        Float
+  electricityCharge Float
+  waterCharge       Float
+  additionalFees    Float    @default(0)
+  totalAmount       Float
+  isPaid            Boolean  @default(false)
+  createdAt         DateTime @default(now())
+
+  room              Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
 }
