@@ -42,8 +42,40 @@
             <div id="appSectionOverview" class="app-section" style="display: none;">
                 <div class="dashboard-header">
                     <div>
-                        <h1>Tổng quan</h1>
-                        <p>Thông tin tổng quan đang được phát triển...</p>
+                        <h1 id="greetingTitle">Chào bạn!</h1>
+                        <p>Chào mừng bạn quay trở lại. Dưới đây là một số gợi ý cho bạn hôm nay.</p>
+                    </div>
+                </div>
+
+                <div class="suggestions-container" style="margin-top: 1rem; padding: 0 2rem 2rem 2rem;">
+                    <h3 style="margin-bottom: 1rem; color: var(--text-color); font-size: 1.1rem; font-weight: 600;">Gợi ý truy cập nhanh</h3>
+                    <div class="suggestion-cards" style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
+                        <!-- Quản lý phòng -->
+                        <div class="suggestion-card" onclick="document.querySelector('[data-section=appSectionRoomList]').click()" style="--hover-border: var(--primary-color); width: 320px; background: var(--card-bg); padding: 1.5rem; border-radius: var(--radius-lg); cursor: pointer; border: 1.5px solid #D1D5DB; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; transition: all 0.2s ease;">
+                            <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(79, 70, 229, 0.1); color: var(--primary-color); display: flex; align-items: center; justify-content: center; font-size: 1.75rem; margin-bottom: 1rem;">
+                                <i class='bx bx-building-house'></i>
+                            </div>
+                            <h4 style="margin-bottom: 0.5rem; color: var(--text-color); font-size: 1.1rem;">Quản lý phòng trọ</h4>
+                            <p style="color: var(--text-muted); font-size: 0.875rem; line-height: 1.5;">Truy cập gần đây. Xem danh sách, thêm phòng mới và cập nhật trạng thái phòng nhanh chóng.</p>
+                        </div>
+                        
+                        <!-- Hợp đồng -->
+                        <div class="suggestion-card" onclick="document.querySelector('[data-section=appSectionContract]').click()" style="--hover-border: #10b981; width: 320px; background: var(--card-bg); padding: 1.5rem; border-radius: var(--radius-lg); cursor: pointer; border: 1.5px solid #D1D5DB; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; transition: all 0.2s ease;">
+                            <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(16, 185, 129, 0.1); color: #10b981; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; margin-bottom: 1rem;">
+                                <i class='bx bx-receipt'></i>
+                            </div>
+                            <h4 style="margin-bottom: 0.5rem; color: var(--text-color); font-size: 1.1rem;">Quản lý Hợp đồng</h4>
+                            <p style="color: var(--text-muted); font-size: 0.875rem; line-height: 1.5;">Tạo hợp đồng thuê mới, gia hạn hoặc xem các hợp đồng sắp hết hạn trong tháng này.</p>
+                        </div>
+
+                        <!-- Cài đặt -->
+                        <div class="suggestion-card" onclick="document.querySelector('[data-section=appSectionSettings]').click()" style="--hover-border: #f59e0b; width: 320px; background: var(--card-bg); padding: 1.5rem; border-radius: var(--radius-lg); cursor: pointer; border: 1.5px solid #D1D5DB; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; transition: all 0.2s ease;">
+                            <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(245, 158, 11, 0.1); color: #f59e0b; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; margin-bottom: 1rem;">
+                                <i class='bx bx-cog'></i>
+                            </div>
+                            <h4 style="margin-bottom: 0.5rem; color: var(--text-color); font-size: 1.1rem;">Cài đặt hệ thống</h4>
+                            <p style="color: var(--text-muted); font-size: 0.875rem; line-height: 1.5;">Cấu hình tài khoản, thông báo và các thiết lập chung cho hệ thống quản lý của bạn.</p>
+                        </div>
                     </div>
                 </div>
             </div>

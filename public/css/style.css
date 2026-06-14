@@ -232,6 +232,12 @@ body {
     box-shadow: var(--shadow-lg);
 }
 
+.suggestion-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--hover-border, var(--primary-color)) !important;
+}
+
 .room-img-container {
     height: 180px;
     background-color: #E5E7EB;
