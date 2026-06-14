@@ -19,11 +19,11 @@
                 <i class='bx bxs-home-smile'></i>
                 <h2>Rentify.</h2>
             </div>
-            <nav class="menu">
-                <a href="#" class="active"><i class='bx bx-grid-alt'></i> Tổng quan</a>
-                <a href="#"><i class='bx bx-building-house'></i> Danh sách phòng</a>
-                <a href="#"><i class='bx bx-receipt'></i> Hợp đồng</a>
-                <a href="#"><i class='bx bx-cog'></i> Cài đặt</a>
+            <nav class="menu" id="sidebarMenu">
+                <a href="#" data-section="appSectionOverview"><i class='bx bx-grid-alt'></i> Tổng quan</a>
+                <a href="#" class="active" data-section="appSectionRoomList"><i class='bx bx-building-house'></i> Danh sách phòng</a>
+                <a href="#" data-section="appSectionContract"><i class='bx bx-receipt'></i> Hợp đồng</a>
+                <a href="#" data-section="appSectionSettings"><i class='bx bx-cog'></i> Cài đặt</a>
             </nav>
         </aside>
 
@@ -39,19 +39,48 @@
                 </div>
             </header>
 
-            <div class="dashboard-header">
-                <div>
-                    <h1>Quản lý Phòng trọ</h1>
-                    <p>Theo dõi và quản lý các phòng trọ của bạn dễ dàng.</p>
+            <div id="appSectionOverview" class="app-section" style="display: none;">
+                <div class="dashboard-header">
+                    <div>
+                        <h1>Tổng quan</h1>
+                        <p>Thông tin tổng quan đang được phát triển...</p>
+                    </div>
                 </div>
-                <button class="btn-primary" onclick="app.openCreateModal()">
-                    <i class='bx bx-plus'></i> Thêm phòng mới
-                </button>
             </div>
 
-            <!-- Room Grid -->
-            <div class="room-grid" id="roomGrid">
-                <!-- Cards will be dynamically injected here by JS -->
+            <div id="appSectionRoomList" class="app-section">
+                <div class="dashboard-header">
+                    <div>
+                        <h1>Quản lý Phòng trọ</h1>
+                        <p>Theo dõi và quản lý các phòng trọ của bạn dễ dàng.</p>
+                    </div>
+                    <button class="btn-primary" onclick="app.openCreateModal()">
+                        <i class='bx bx-plus'></i> Thêm phòng mới
+                    </button>
+                </div>
+
+                <!-- Room Grid -->
+                <div class="room-grid" id="roomGrid">
+                    <!-- Cards will be dynamically injected here by JS -->
+                </div>
+            </div>
+            
+            <div id="appSectionContract" class="app-section" style="display: none;">
+                <div class="dashboard-header">
+                    <div>
+                        <h1>Quản lý Hợp đồng</h1>
+                        <p>Tính năng đang phát triển...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="appSectionSettings" class="app-section" style="display: none;">
+                <div class="dashboard-header">
+                    <div>
+                        <h1>Cài đặt</h1>
+                        <p>Tính năng đang phát triển...</p>
+                    </div>
+                </div>
             </div>
         </main>
     </div>

@@ -13,6 +13,28 @@ const app = {
                 contractSection.style.display = 'none';
             }
         });
+
+        // Setup menu navigation
+        const menuItems = document.querySelectorAll('#sidebarMenu a[data-section]');
+        menuItems.forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                // Remove active class
+                menuItems.forEach(i => i.classList.remove('active'));
+                // Add active class
+                item.classList.add('active');
+                
+                // Hide all sections
+                document.querySelectorAll('.app-section').forEach(sec => sec.style.display = 'none');
+                
+                // Show target section
+                const targetId = item.getAttribute('data-section');
+                const targetSection = document.getElementById(targetId);
+                if (targetSection) {
+                    targetSection.style.display = 'block';
+                }
+            });
+        });
     },
 
     async loadRooms() {
