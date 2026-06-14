@@ -35,11 +35,11 @@ const swaggerOptions = {
 const swaggerDocs = swaggerJsDoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
-app.get('/', (req: Request, res: Response) => {
-  res.send('Welcome to Rentify API');
-});
+app.use(express.static(path.join(__dirname, '../public')));
 
-// App Routes will go here
+// App Routes
+import roomRoutes from './modules/room/room.routes';
+app.use('/api/rooms', roomRoutes);
 
 app.listen(port, () => {
   console.log(`[server]: Server is running at http://localhost:${port}`);

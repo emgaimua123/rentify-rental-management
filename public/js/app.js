@@ -1,7 +1,10 @@
 const app = {
+    originalRooms: [],
     rooms: [],
+    currentSort: 'default',
 
     async init() {
+        this.updateGreeting();
         await this.loadRooms();
 
         // Event listener cho dropdown Trạng thái phòng
@@ -13,6 +16,57 @@ const app = {
                 contractSection.style.display = 'none';
             }
         });
+
+        // Setup menu navigation
+        const menuItems = document.querySelectorAll('#sidebarMenu a[data-section]');
+        menuItems.forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                // Remove active class
+                menuItems.forEach(i => i.classList.remove('active'));
+                // Add active class
+                item.classList.add('active');
+                
+                // Hide all sections
+                document.querySelectorAll('.app-section').forEach(sec => sec.style.display = 'none');
+                
+                // Show target section
+                const targetId = item.getAttribute('data-section');
+                const targetSection = document.getElementById(targetId);
+                if (targetSection) {
+                    targetSection.style.display = 'block';
+                }
+            });
+        });
+
+        // Event listeners for multi-room preview
+        ['multiPrefix', 'letterFrom', 'letterTo', 'numberFrom', 'numberTo'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.addEventListener('input', () => this.updateMultiRoomPreview());
+        });
+    },
+
+    updateGreeting() {
+        const hour = new Date().getHours();
+        let greeting = 'Chào bạn';
+        let icon = "<i class='bx bx-sun'></i>";
+        
+        if (hour >= 5 && hour < 12) {
+            greeting = 'Chào buổi sáng';
+            icon = "<i class='bx bx-sun'></i>";
+        } else if (hour >= 12 && hour < 18) {
+            greeting = 'Chào buổi chiều';
+            icon = "<i class='bx bx-cloud'></i>";
+        } else {
+            greeting = 'Chào buổi tối';
+            icon = "<i class='bx bx-moon'></i>";
+        }
+
+        const userName = 'Admin'; // Hardcoded for now, can be fetched from profile
+        const greetingElement = document.getElementById('greetingTitle');
+        if (greetingElement) {
+            greetingElement.innerHTML = `${greeting} ${icon} ${userName}!`;
+        }
     },
 
     switchTab(tabId) {
@@ -35,7 +89,9 @@ const app = {
         try {
             const res = await api.getRooms();
             if (res.success) {
-                this.rooms = res.data;
+                this.originalRooms = [...res.data];
+                this.rooms = [...res.data];
+                this.applySort();
                 this.renderRooms();
             } else {
                 this.showToast('Lỗi tải danh sách phòng', 'error');
@@ -43,6 +99,35 @@ const app = {
         } catch (e) {
             this.showToast('Mất kết nối server', 'error');
         }
+    },
+
+    sortRooms(order) {
+        this.currentSort = order;
+        this.applySort();
+        this.renderRooms();
+    },
+
+    applySort() {
+        if (!this.currentSort || this.currentSort === 'default') {
+            if (this.originalRooms) {
+                this.rooms = [...this.originalRooms];
+            }
+            return;
+        }
+
+        const extractIdentifier = (name) => {
+            // Remove common prefixes like "Phòng", "Room", "Phong"
+            return name.replace(/^(phòng|phong|room)\s*/i, '').trim();
+        };
+
+        this.rooms.sort((a, b) => {
+            const idA = extractIdentifier(a.name);
+            const idB = extractIdentifier(b.name);
+            
+            // numeric: true allows natural sorting (e.g. 2 before 10)
+            const cmp = idA.localeCompare(idB, undefined, { numeric: true, sensitivity: 'base' });
+            return this.currentSort === 'name_asc' ? cmp : -cmp;
+        });
     },
 
     renderRooms() {
@@ -67,6 +152,7 @@ const app = {
 
             card.innerHTML = `
                 <div class="room-img-container">
+                    <input type="checkbox" class="room-checkbox" data-id="${room.id}" onclick="event.stopPropagation(); app.updateSelection()" style="position: absolute; top: 10px; left: 10px; z-index: 10; width: 20px; height: 20px; cursor: pointer;">
                     ${imgHTML}
                     <div class="status-badge status-${room.status}">${room.status}</div>
                 </div>
@@ -88,6 +174,7 @@ const app = {
             `;
             grid.appendChild(card);
         });
+        this.updateSelection();
     },
 
     openCreateModal() {
@@ -100,6 +187,133 @@ const app = {
         document.getElementById('roomModal').classList.add('active');
         document.getElementById('saveRoomBtn').disabled = false;
         document.getElementById('saveRoomBtn').innerText = 'Lưu phòng';
+    },
+
+    openCreateMultipleModal() {
+        document.getElementById('multiRoomForm').reset();
+        document.getElementById('letterRangeInputs').style.display = 'none';
+        document.getElementById('numberRangeInputs').style.display = 'flex';
+        document.getElementById('useLetterRange').checked = false;
+        document.getElementById('useNumberRange').checked = true;
+        document.getElementById('multiRoomPreview').innerText = 'Nhập thông tin để xem trước...';
+        
+        document.getElementById('multiRoomModal').classList.add('active');
+        document.getElementById('saveMultiRoomBtn').disabled = false;
+        document.getElementById('saveMultiRoomBtn').innerText = 'Tạo danh sách phòng';
+    },
+
+    toggleLetterRange(checked) {
+        document.getElementById('letterRangeInputs').style.display = checked ? 'flex' : 'none';
+        this.updateMultiRoomPreview();
+    },
+
+    toggleNumberRange(checked) {
+        document.getElementById('numberRangeInputs').style.display = checked ? 'flex' : 'none';
+        this.updateMultiRoomPreview();
+    },
+
+    generateRoomNames() {
+        const prefix = document.getElementById('multiPrefix').value || '';
+        const useLetter = document.getElementById('useLetterRange').checked;
+        const useNumber = document.getElementById('useNumberRange').checked;
+        
+        let letters = [''];
+        if (useLetter) {
+            let from = document.getElementById('letterFrom').value.toUpperCase();
+            let to = document.getElementById('letterTo').value.toUpperCase();
+            if (from && to && from <= to) {
+                letters = [];
+                for (let i = from.charCodeAt(0); i <= to.charCodeAt(0); i++) {
+                    letters.push(String.fromCharCode(i));
+                }
+            } else {
+                return [];
+            }
+        }
+        
+        let numbers = [''];
+        if (useNumber) {
+            let from = parseInt(document.getElementById('numberFrom').value);
+            let to = parseInt(document.getElementById('numberTo').value);
+            if (!isNaN(from) && !isNaN(to) && from <= to) {
+                numbers = [];
+                for (let i = from; i <= to; i++) {
+                    numbers.push(i.toString());
+                }
+            } else {
+                return [];
+            }
+        }
+        
+        let names = [];
+        for (let l of letters) {
+            for (let n of numbers) {
+                names.push(`${prefix}${l}${n}`.trim());
+            }
+        }
+        return names.filter(n => n !== '');
+    },
+
+    updateMultiRoomPreview() {
+        const names = this.generateRoomNames();
+        const preview = document.getElementById('multiRoomPreview');
+        if (!document.getElementById('multiPrefix').value) {
+            preview.innerText = 'Vui lòng nhập tiền tố...';
+            return;
+        }
+        if (names.length === 0) {
+            preview.innerText = 'Phạm vi chữ cái hoặc số không hợp lệ.';
+            return;
+        }
+        if (names.length > 50) {
+            preview.innerText = `Sẽ tạo ${names.length} phòng: ${names.slice(0, 10).join(', ')}... (và ${names.length - 10} phòng khác)`;
+        } else {
+            preview.innerText = `Sẽ tạo ${names.length} phòng: ${names.join(', ')}`;
+        }
+    },
+
+    async handleMultiRoomSubmit(e) {
+        e.preventDefault();
+        const names = this.generateRoomNames();
+        if (names.length === 0) {
+            this.showToast('Không có phòng nào được tạo. Kiểm tra lại thông tin.', 'error');
+            return;
+        }
+
+        const btn = document.getElementById('saveMultiRoomBtn');
+        btn.disabled = true;
+        btn.innerText = 'Đang xử lý...';
+
+        const price = Number(document.getElementById('multiRoomPrice').value);
+        const area = Number(document.getElementById('multiRoomArea').value);
+        const type = document.getElementById('multiRoomType').value;
+
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const name of names) {
+            const data = {
+                name: name,
+                price: price,
+                area: area,
+                type: type,
+                status: 'Available'
+            };
+            try {
+                const res = await api.createRoom(data);
+                if (res.success) {
+                    successCount++;
+                } else {
+                    errorCount++;
+                }
+            } catch (err) {
+                errorCount++;
+            }
+        }
+
+        this.showToast(`Đã tạo thành công ${successCount} phòng. Lỗi: ${errorCount}`, successCount > 0 ? 'success' : 'error');
+        this.closeModals();
+        this.loadRooms();
     },
 
     openEditModal(id) {
@@ -272,6 +486,54 @@ const app = {
         } catch (err) {
             this.showToast('Lỗi kết nối', 'error');
         }
+    },
+
+    updateSelection() {
+        const checkboxes = document.querySelectorAll('.room-checkbox:checked');
+        const count = checkboxes.length;
+        const btn = document.getElementById('btnDeleteSelected');
+        const countSpan = document.getElementById('selectedCount');
+        
+        if (count > 0) {
+            btn.style.display = 'inline-flex';
+            countSpan.innerText = count;
+        } else {
+            btn.style.display = 'none';
+        }
+    },
+
+    async deleteSelectedRooms() {
+        const checkboxes = document.querySelectorAll('.room-checkbox:checked');
+        if (checkboxes.length === 0) return;
+        
+        if (!confirm(`Bạn có chắc chắn muốn xóa ${checkboxes.length} phòng đã chọn?`)) return;
+        
+        let successCount = 0;
+        let errorCount = 0;
+        
+        const btn = document.getElementById('btnDeleteSelected');
+        btn.disabled = true;
+        btn.innerText = 'Đang xóa...';
+        
+        for (const cb of checkboxes) {
+            const id = cb.getAttribute('data-id');
+            try {
+                const res = await api.deleteRoom(id);
+                if (res.success) {
+                    successCount++;
+                } else {
+                    errorCount++;
+                }
+            } catch (err) {
+                errorCount++;
+            }
+        }
+        
+        this.showToast(`Đã xóa ${successCount} phòng. Lỗi: ${errorCount}`, successCount > 0 ? 'success' : 'error');
+        btn.disabled = false;
+        btn.innerHTML = `<i class='bx bx-trash'></i> Xóa đã chọn (<span id="selectedCount">0</span>)`;
+        btn.style.display = 'none';
+        this.loadRooms();
     },
 
     showToast(message, type = 'success') {
