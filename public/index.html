@@ -49,9 +49,9 @@
 
                 <div class="suggestions-container" style="margin-top: 1rem; padding: 0 2rem 2rem 2rem;">
                     <h3 style="margin-bottom: 1rem; color: var(--text-color); font-size: 1.1rem; font-weight: 600;">Gợi ý truy cập nhanh</h3>
-                    <div class="suggestion-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
+                    <div class="suggestion-cards" style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
                         <!-- Quản lý phòng -->
-                        <div class="suggestion-card" onclick="document.querySelector('[data-section=appSectionRoomList]').click()" style="background: var(--bg-color); padding: 1.5rem; border-radius: var(--radius-lg); cursor: pointer; border: 1px solid var(--border-color); display: flex; flex-direction: column;">
+                        <div class="suggestion-card" onclick="document.querySelector('[data-section=appSectionRoomList]').click()" style="width: 320px; background: var(--card-bg); padding: 1.5rem; border-radius: var(--radius-lg); cursor: pointer; border: 1.5px solid #D1D5DB; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; transition: all 0.2s ease;">
                             <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(79, 70, 229, 0.1); color: var(--primary-color); display: flex; align-items: center; justify-content: center; font-size: 1.75rem; margin-bottom: 1rem;">
                                 <i class='bx bx-building-house'></i>
                             </div>
@@ -60,7 +60,7 @@
                         </div>
                         
                         <!-- Hợp đồng -->
-                        <div class="suggestion-card" onclick="document.querySelector('[data-section=appSectionContract]').click()" style="background: var(--bg-color); padding: 1.5rem; border-radius: var(--radius-lg); cursor: pointer; border: 1px solid var(--border-color); display: flex; flex-direction: column;">
+                        <div class="suggestion-card" onclick="document.querySelector('[data-section=appSectionContract]').click()" style="width: 320px; background: var(--card-bg); padding: 1.5rem; border-radius: var(--radius-lg); cursor: pointer; border: 1.5px solid #D1D5DB; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; transition: all 0.2s ease;">
                             <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(16, 185, 129, 0.1); color: #10b981; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; margin-bottom: 1rem;">
                                 <i class='bx bx-receipt'></i>
                             </div>
@@ -69,7 +69,7 @@
                         </div>
 
                         <!-- Cài đặt -->
-                        <div class="suggestion-card" onclick="document.querySelector('[data-section=appSectionSettings]').click()" style="background: var(--bg-color); padding: 1.5rem; border-radius: var(--radius-lg); cursor: pointer; border: 1px solid var(--border-color); display: flex; flex-direction: column;">
+                        <div class="suggestion-card" onclick="document.querySelector('[data-section=appSectionSettings]').click()" style="width: 320px; background: var(--card-bg); padding: 1.5rem; border-radius: var(--radius-lg); cursor: pointer; border: 1.5px solid #D1D5DB; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; transition: all 0.2s ease;">
                             <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(245, 158, 11, 0.1); color: #f59e0b; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; margin-bottom: 1rem;">
                                 <i class='bx bx-cog'></i>
                             </div>
