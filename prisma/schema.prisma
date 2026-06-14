@@ -1,0 +1,46 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Room {
+  id        Int        @id @default(autoincrement())
+  name      String
+  price     Float
+  area      Float?
+  type      String
+  status    String     @default("Available") // Available, Occupied, Maintenance
+  isDeleted Boolean    @default(false)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  
+  // Relations
+  contracts Contract[]
+  medias    RoomMedia[]
+}
+
+model RoomMedia {
+  id        Int      @id @default(autoincrement())
+  roomId    Int
+  room      Room     @relation(fields: [roomId], references: [id])
+  url       String   // Chứa đường dẫn ảnh HOẶC link video ngoài
+  type      String   // Thay vì Enum (SQLite không hỗ trợ Enum), dùng String: "IMAGE", "VIDEO"
+  createdAt DateTime @default(now())
+}
+
+model Contract {
+  id        Int      @id @default(autoincrement())
+  roomId    Int
+  tenantName String
+  tenantCount Int?   @default(1)
+  startDate DateTime
+  endDate   DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Restrict) // Bắt lỗi khóa ngoại nếu xóa Room đang có Contract
+}
