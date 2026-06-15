@@ -2,14 +2,12 @@
   "version": 2,
   "buildCommand": "echo 'no build needed'",
   "functions": {
-    "api/index.ts": {
-      "maxDuration": 30
+    "api/index.js": {
+      "maxDuration": 30,
+      "includeFiles": "src/**"
     }
   },
   "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/api/index.ts"
-    }
+    { "src": "/(.*)", "dest": "/api/index.js" }
   ]
 }
