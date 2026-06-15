@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import prisma from '../../core/database/prismaClient';
+import { getPrisma } from '../../core/database/prismaClient';
 import { CreateRoomInput, UpdateRoomInput, BulkGenerateRoomsDTO } from './dtos/room.dto';
 import { AddVideoLinkDTO } from '../media/dtos/media.dto';
 import fs from 'fs';
@@ -10,6 +10,17 @@ const mapAutoStatus = (room: any) => {
     const currentContract = room.contracts[0]; // Vì đã order by createdAt desc
     if (currentContract.tenant) {
       currentContract.tenantName = currentContract.tenant.name;
+      currentContract.tenantPhone = currentContract.tenant.phone || '';
+      currentContract.tenantEmail = currentContract.tenant.email || '';
+    }
+    if (currentContract.tenantList) {
+      try {
+        currentContract.tenantList = JSON.parse(currentContract.tenantList);
+      } catch (e) {
+        currentContract.tenantList = [];
+      }
+    } else {
+      currentContract.tenantList = [];
     }
     // So sánh ngày (bỏ phần giờ) để tránh lỗi múi giờ
     const endDate = new Date(currentContract.endDate);
@@ -43,7 +54,7 @@ export const getRooms = async (req: Request, res: Response) => {
       ? { [sortBy]: sortOrder }
       : { createdAt: 'desc' };
 
-    let rooms = await prisma.room.findMany({
+    let rooms = await getPrisma(req).room.findMany({
       where: filter,
       skip,
       take: limit,
@@ -57,7 +68,7 @@ export const getRooms = async (req: Request, res: Response) => {
     // Cập nhật trạng thái động
     rooms = rooms.map(mapAutoStatus);
 
-    const total = await prisma.room.count({ where: filter });
+    const total = await getPrisma(req).room.count({ where: filter });
 
     res.status(200).json({ 
       success: true, 
@@ -78,7 +89,7 @@ export const getRooms = async (req: Request, res: Response) => {
 export const getRoomById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    let room = await prisma.room.findFirst({
+    let room = await getPrisma(req).room.findFirst({
       where: { id: Number(id), isDeleted: false },
       include: { 
         medias: true,
@@ -100,6 +111,7 @@ export const getRoomById = async (req: Request, res: Response) => {
 export const createRoom = async (req: Request, res: Response) => {
   try {
     const { name, price, area, type, status, tenantName, tenantCount, startDate, endDate } = req.body as CreateRoomInput;
+    const { tenantPhone, tenantEmail, tenantList } = req.body as any;
     
     // Validation
     if (!name || name.trim() === '') {
@@ -110,12 +122,18 @@ export const createRoom = async (req: Request, res: Response) => {
     }
     
     if (status === 'Occupied') {
-      if (!tenantName || !startDate || !endDate) {
-        return res.status(400).json({ success: false, message: 'Vui lòng nhập đủ Tên người thuê, Từ ngày, Đến ngày khi chọn Đang cho thuê.' });
+      if (!tenantName) {
+        return res.status(400).json({ success: false, message: 'Vui lòng nhập Tên người đại diện thuê.' });
+      }
+      if (!startDate) {
+        return res.status(400).json({ success: false, message: 'Vui lòng chọn Ngày bắt đầu hợp đồng.' });
+      }
+      if (!endDate) {
+        return res.status(400).json({ success: false, message: 'Vui lòng chọn Ngày kết thúc hợp đồng.' });
       }
     }
 
-    const newRoom = await prisma.room.create({
+    const newRoom = await getPrisma(req).room.create({
       data: {
         name,
         price,
@@ -124,8 +142,15 @@ export const createRoom = async (req: Request, res: Response) => {
         status: status || 'Available',
         contracts: status === 'Occupied' && tenantName ? {
           create: {
-            tenant: { create: { name: tenantName } },
+            tenant: { 
+              create: { 
+                name: tenantName,
+                phone: tenantPhone,
+                email: tenantEmail
+              } 
+            },
             tenantCount: tenantCount || 1,
+            tenantList: tenantList ? JSON.stringify(tenantList) : null,
             startDate: new Date((startDate as string).includes('T') ? startDate as string : `${startDate}T12:00:00.000Z`),
             endDate: new Date((endDate as string).includes('T') ? endDate as string : `${endDate}T12:00:00.000Z`)
           }
@@ -148,8 +173,9 @@ export const updateRoom = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { name, price, area, type, status, tenantName, tenantCount, startDate, endDate } = req.body as UpdateRoomInput;
+    const { tenantPhone, tenantEmail, tenantList } = req.body as any;
 
-    const room = await prisma.room.findFirst({
+    const room = await getPrisma(req).room.findFirst({
       where: { id: Number(id), isDeleted: false },
       include: { contracts: { orderBy: { createdAt: 'desc' }, take: 1, include: { tenant: true } } }
     });
@@ -162,14 +188,27 @@ export const updateRoom = async (req: Request, res: Response) => {
     if (status === 'Occupied') {
       if (room.status !== 'Occupied') {
         // Tạo hợp đồng mới
-        if (!tenantName || !startDate || !endDate) {
-          return res.status(400).json({ success: false, message: 'Vui lòng nhập đủ thông tin Hợp đồng.' });
+        if (!tenantName) {
+          return res.status(400).json({ success: false, message: 'Vui lòng nhập Tên người đại diện thuê.' });
         }
-        await prisma.contract.create({
+        if (!startDate) {
+          return res.status(400).json({ success: false, message: 'Vui lòng chọn Ngày bắt đầu hợp đồng.' });
+        }
+        if (!endDate) {
+          return res.status(400).json({ success: false, message: 'Vui lòng chọn Ngày kết thúc hợp đồng.' });
+        }
+        await getPrisma(req).contract.create({
           data: {
-            roomId: room.id,
-            tenant: { create: { name: tenantName } },
+            room: { connect: { id: room.id } },
+            tenant: { 
+              create: { 
+                name: tenantName,
+                phone: tenantPhone,
+                email: tenantEmail
+              } 
+            },
             tenantCount: tenantCount || 1,
+            tenantList: tenantList ? JSON.stringify(tenantList) : null,
             startDate: new Date((startDate as string).includes('T') ? startDate as string : `${startDate}T12:00:00.000Z`),
             endDate: new Date((endDate as string).includes('T') ? endDate as string : `${endDate}T12:00:00.000Z`)
           }
@@ -178,11 +217,18 @@ export const updateRoom = async (req: Request, res: Response) => {
         // Cập nhật hợp đồng đang có
         const currentContract = room.contracts[0];
         if (currentContract) {
-          await prisma.contract.update({
+          await getPrisma(req).contract.update({
             where: { id: currentContract.id },
             data: {
-              tenant: tenantName ? { update: { name: tenantName } } : undefined,
+              tenant: tenantName ? { 
+                update: { 
+                  name: tenantName,
+                  phone: tenantPhone,
+                  email: tenantEmail
+                } 
+              } : undefined,
               tenantCount: tenantCount || currentContract.tenantCount,
+              tenantList: tenantList ? JSON.stringify(tenantList) : null,
               startDate: startDate ? new Date((startDate as string).includes('T') ? startDate as string : `${startDate}T12:00:00.000Z`) : currentContract.startDate,
               endDate: endDate ? new Date((endDate as string).includes('T') ? endDate as string : `${endDate}T12:00:00.000Z`) : currentContract.endDate
             }
@@ -192,7 +238,7 @@ export const updateRoom = async (req: Request, res: Response) => {
     }
 
     // Update Room
-    const updatedRoom = await prisma.room.update({
+    const updatedRoom = await getPrisma(req).room.update({
       where: { id: Number(id) },
       data: { name, price, area, type, status }
     });
@@ -211,7 +257,7 @@ export const deleteRoom = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     
-    const room = await prisma.room.findFirst({
+    const room = await getPrisma(req).room.findFirst({
       where: { id: Number(id), isDeleted: false },
       include: { contracts: { orderBy: { createdAt: 'desc' }, take: 1, include: { tenant: true } } }
     });
@@ -220,20 +266,11 @@ export const deleteRoom = async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: 'Không tìm thấy phòng.' });
     }
 
-    const currentContract = room.contracts[0];
-    const isContractActive = currentContract && new Date(currentContract.endDate) >= new Date();
-
-    if (room.status === 'Occupied' && isContractActive) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Không thể xóa phòng đang có người thuê (Hợp đồng còn hiệu lực)' 
-      });
-    }
-
-    // Soft Delete
-    await prisma.room.update({
+    // Soft Delete — rename to free up the unique name for reuse
+    const deletedName = `${room.name}_deleted_${Date.now()}`;
+    await getPrisma(req).room.update({
       where: { id: Number(id) },
-      data: { isDeleted: true, status: 'Maintenance' }
+      data: { isDeleted: true, status: 'Maintenance', name: deletedName }
     });
 
     res.status(200).json({ success: true, message: 'Xóa phòng thành công.' });
@@ -261,7 +298,7 @@ export const bulkGenerateRooms = async (req: Request, res: Response) => {
       });
     }
 
-    const result = await prisma.room.createMany({
+    const result = await getPrisma(req).room.createMany({
       data: roomsToCreate
     });
 
@@ -279,13 +316,13 @@ export const uploadRoomImage = async (req: Request, res: Response) => {
 
     if (!file) return res.status(400).json({ success: false, message: 'File lỗi.' });
 
-    const room = await prisma.room.findFirst({ where: { id: Number(roomId), isDeleted: false } });
+    const room = await getPrisma(req).room.findFirst({ where: { id: Number(roomId), isDeleted: false } });
     if (!room) {
       fs.unlinkSync(file.path);
       return res.status(404).json({ success: false, message: 'Không tìm thấy phòng.' });
     }
 
-    const media = await prisma.roomMedia.create({
+    const media = await getPrisma(req).roomMedia.create({
       data: { roomId: Number(roomId), url: `/uploads/rooms/${file.filename}`, type: 'IMAGE' }
     });
 
@@ -303,10 +340,10 @@ export const addRoomVideo = async (req: Request, res: Response) => {
 
     if (!url || !url.startsWith('http')) return res.status(400).json({ success: false, message: 'URL không hợp lệ.' });
 
-    const room = await prisma.room.findFirst({ where: { id: Number(roomId), isDeleted: false } });
+    const room = await getPrisma(req).room.findFirst({ where: { id: Number(roomId), isDeleted: false } });
     if (!room) return res.status(404).json({ success: false, message: 'Không tìm thấy phòng.' });
 
-    const media = await prisma.roomMedia.create({
+    const media = await getPrisma(req).roomMedia.create({
       data: { roomId: Number(roomId), url, type: 'VIDEO' }
     });
 
@@ -321,7 +358,7 @@ export const deleteRoomMedia = async (req: Request, res: Response) => {
   try {
     const { mediaId } = req.params;
 
-    const media = await prisma.roomMedia.findUnique({ where: { id: Number(mediaId) } });
+    const media = await getPrisma(req).roomMedia.findUnique({ where: { id: Number(mediaId) } });
     if (!media) return res.status(404).json({ success: false, message: 'Không tìm thấy media.' });
 
     if (media.type === 'IMAGE') {
@@ -329,7 +366,7 @@ export const deleteRoomMedia = async (req: Request, res: Response) => {
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
 
-    await prisma.roomMedia.delete({ where: { id: Number(mediaId) } });
+    await getPrisma(req).roomMedia.delete({ where: { id: Number(mediaId) } });
 
     res.status(200).json({ success: true, message: 'Xóa thành công.' });
   } catch (error: any) {

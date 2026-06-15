@@ -12,13 +12,26 @@ export const register = async (req: Request, res: Response) => {
   try {
     const { username, password, name, email } = req.body;
 
-    if (!username || !password || !name) {
-      return res.status(400).json({ success: false, message: 'Vui lòng nhập đủ thông tin.' });
+    if (!username) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập tên đăng nhập.' });
+    }
+    if (!password) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập mật khẩu.' });
+    }
+    if (!name) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập tên hiển thị.' });
     }
 
-    const existingUser = await prisma.user.findFirst({ where: { OR: [{ username }, { email: email || '' }] } });
-    if (existingUser) {
-      return res.status(400).json({ success: false, message: 'Tên đăng nhập hoặc Email đã tồn tại.' });
+    const userByUsername = await prisma.user.findUnique({ where: { username } });
+    if (userByUsername) {
+      return res.status(400).json({ success: false, message: 'Tên đăng nhập đã tồn tại.' });
+    }
+
+    if (email) {
+      const userByEmail = await prisma.user.findFirst({ where: { email } });
+      if (userByEmail) {
+        return res.status(400).json({ success: false, message: 'Email đã được sử dụng.' });
+      }
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -42,6 +55,7 @@ export const register = async (req: Request, res: Response) => {
         name: user.name,
         email: user.email,
         avatar: user.avatar,
+        role: user.role,
         token: generateToken(user.id)
       }
     });
@@ -78,6 +92,7 @@ export const login = async (req: Request, res: Response) => {
         name: user.name,
         email: user.email,
         avatar: user.avatar,
+        role: user.role,
         token: generateToken(user.id)
       }
     });
@@ -98,6 +113,18 @@ export const getMe = async (req: Request, res: Response) => {
     }
 
     res.status(200).json({ success: true, data: user });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getUsers = async (req: Request, res: Response) => {
+  try {
+    const users = await prisma.user.findMany({
+      select: { id: true, username: true, name: true, role: true, email: true, createdAt: true, avatar: true },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.status(200).json({ success: true, data: users });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

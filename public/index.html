@@ -100,50 +100,71 @@
         </div>
     </div>
 
-    <!-- Profile Required Modal -->
-    <div class="modal-overlay" id="profileRequiredModal" style="background: rgba(0,0,0,0.8); z-index: 9999;">
-        <div class="modal-card">
-            <div class="modal-header">
-                <h3 data-i18n="profile.required">Cập nhật thông tin</h3>
-            </div>
-            <div class="modal-body">
-                <p style="margin-bottom: 1.5rem; color: var(--text-muted);" data-i18n="profile.required_desc">Vui lòng cập nhật Tên hiển thị và Avatar để tiếp tục sử dụng hệ thống.</p>
-                <form id="profileRequiredForm" onsubmit="app.handleProfileUpdate(event)">
-                    <div class="form-group">
-                        <label data-i18n="profile.name">Tên hiển thị</label>
-                        <input type="text" id="reqProfileName" required placeholder="Ví dụ: Nguyễn Văn A">
-                    </div>
-                    <div class="form-group">
-                        <label data-i18n="profile.avatar_url">Đường dẫn Avatar (Tùy chọn)</label>
-                        <input type="text" id="reqProfileAvatar" placeholder="https://...">
-                    </div>
-                    <button type="submit" class="btn-primary" style="width: 100%;" data-i18n="profile.save">Lưu thông tin</button>
-                </form>
-            </div>
-        </div>
-    </div>
 
-    <!-- Profile Modal -->
+    <!-- Profile Edit Modal (Full) -->
     <div class="modal-overlay" id="profileModal">
-        <div class="modal-card">
+        <div class="modal-card modal-lg">
             <div class="modal-header">
-                <h3 data-i18n="profile.update">Cập nhật thông tin</h3>
+                <h3 data-i18n="profile.modal_title">Thông tin cá nhân</h3>
                 <button class="btn-close" onclick="app.closeProfileModal()"><i class='bx bx-x'></i></button>
             </div>
             <div class="modal-body">
                 <form id="profileForm" onsubmit="app.handleProfileUpdate(event)">
-                    <div class="form-group" style="text-align: center;">
-                        <img id="profilePreview" src="" alt="Avatar" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 1rem; border: 2px solid var(--primary-color);">
+                    <!-- Avatar section -->
+                    <div style="display:flex; align-items:center; gap:1.5rem; margin-bottom:1.5rem; padding:1.25rem; background:var(--bg-color); border-radius:var(--radius-lg);">
+                        <div style="position:relative; cursor:pointer;" onclick="document.getElementById('profileAvatarFile').click()">
+                            <img id="profilePreview" src="https://ui-avatars.com/api/?name=User&background=4F46E5&color=fff" alt="Avatar"
+                                style="width:80px; height:80px; border-radius:50%; object-fit:cover; border:3px solid var(--primary-color); display:block;">
+                            <div style="position:absolute; bottom:0; right:0; background:var(--primary-color); color:#fff; border-radius:50%; width:24px; height:24px; display:flex; align-items:center; justify-content:center; font-size:0.9rem;">
+                                <i class='bx bx-camera'></i>
+                            </div>
+                        </div>
+                        <div style="flex:1;">
+                            <div style="font-weight:600; margin-bottom:0.25rem;" id="profilePreviewName">User</div>
+                            <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.5rem;" data-i18n="profile.avatar_click">Click vào ảnh để thay đổi avatar</div>
+                            <input type="file" id="profileAvatarFile" accept="image/*" style="display:none"
+                                onchange="app.previewProfileAvatar(this)">
+                            <input type="text" id="profileAvatar" placeholder="hoặc dán URL ảnh..." style="width:100%; font-size:0.8rem; padding:0.35rem 0.6rem; border:1px solid var(--border-color); border-radius:6px; background:var(--card-bg); color:var(--text-color);"
+                                oninput="app.onProfileAvatarUrlChange(this.value)">
+                        </div>
+                    </div>
+
+                    <div class="form-section-title" data-i18n="profile.account_info">Thông tin tài khoản</div>
+                    <div class="form-group-row">
+                        <div class="form-group">
+                            <label data-i18n="profile.display_name">Tên hiển thị</label>
+                            <input type="text" id="profileName" required placeholder="Nguyễn Văn A">
+                        </div>
+                        <div class="form-group">
+                            <label><span data-i18n="profile.username_label">Tên đăng nhập</span> <span style="color:var(--text-muted); font-size:0.75rem;" data-i18n="profile.username_readonly">(không thể chỉnh)</span></label>
+                            <input type="text" id="profileUsername" readonly style="background:var(--bg-color); color:var(--text-muted); cursor:not-allowed;">
+                        </div>
                     </div>
                     <div class="form-group">
-                        <label data-i18n="profile.name">Tên hiển thị</label>
-                        <input type="text" id="profileName" required>
+                        <label><span data-i18n="profile.change_password">Đổi mật khẩu</span> <span style="color:var(--text-muted); font-size:0.75rem;" data-i18n="profile.password_hint">(để trống nếu không muốn đổi)</span></label>
+                        <input type="password" id="profilePassword" data-i18n="profile.new_password_placeholder" placeholder="Mật khẩu mới...">
+                    </div>
+
+                    <div class="form-section-title" style="margin-top:1.25rem;" data-i18n="profile.contact_info">Thông tin liên lạc</div>
+                    <div class="form-group-row">
+                        <div class="form-group">
+                            <label data-i18n="profile.phone">Số điện thoại</label>
+                            <input type="tel" id="profilePhone" placeholder="0912 345 678">
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="auth.email">Email</label>
+                            <input type="email" id="profileEmail" placeholder="email@example.com">
+                        </div>
                     </div>
                     <div class="form-group">
-                        <label data-i18n="profile.avatar_url">Đường dẫn Avatar (Tùy chọn)</label>
-                        <input type="text" id="profileAvatar" placeholder="https://..." oninput="document.getElementById('profilePreview').src = this.value || 'https://ui-avatars.com/api/?name=User'">
+                        <label data-i18n="profile.address">Địa chỉ</label>
+                        <input type="text" id="profileAddress" placeholder="123 Đường ABC, Quận 1, TP.HCM">
                     </div>
-                    <button type="submit" class="btn-primary" style="width: 100%;" data-i18n="profile.save">Lưu thay đổi</button>
+
+                    <div style="display:flex; gap:0.75rem; margin-top:1.5rem;">
+                        <button type="button" class="btn-secondary" style="flex:1" onclick="app.closeProfileModal()" data-i18n="room.cancel">Hủy</button>
+                        <button type="submit" class="btn-primary" style="flex:2" data-i18n="profile.save_changes">Lưu thay đổi</button>
+                    </div>
                 </form>
             </div>
         </div>
@@ -161,31 +182,132 @@
                 <a href="#" data-section="appSectionOverview"><i class='bx bx-grid-alt'></i> <span data-i18n="menu.overview">Tổng quan</span></a>
                 <a href="#" class="active" data-section="appSectionRoomList"><i class='bx bx-building-house'></i> <span data-i18n="menu.rooms">Danh sách phòng</span></a>
                 <a href="#" data-section="appSectionBill"><i class='bx bx-receipt'></i> <span data-i18n="menu.bills">Hóa đơn</span></a>
-                <a href="#" data-section="appSectionContract"><i class='bx bx-file'></i> <span data-i18n="menu.contracts">Hợp đồng</span></a>
-                <a href="#" onclick="logout()"><i class='bx bx-log-out'></i> <span data-i18n="menu.logout">Đăng xuất</span></a>
+                <a href="#" data-section="appSectionContractHistory" onclick="if(window.app) window.app.renderContractHistory()"><i class='bx bx-history'></i> <span data-i18n="contract.history_title">Lịch sử hợp đồng</span></a>
             </nav>
         </aside>
 
         <!-- Main Content -->
         <main class="main-content">
-            <header class="topbar">
-                <div class="search-bar">
+            <header class="topbar" style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="flex: 1;"></div> <!-- Placeholder trái -->
+
+                <!-- Middle Search Bar -->
+                <div class="search-bar" id="topbarSearchBar" style="display:none; visibility:hidden; width: 400px; max-width: 50%;">
                     <i class='bx bx-search'></i>
-                    <input type="text" placeholder="Tìm kiếm phòng..." id="searchInput" data-i18n="topbar.search">
+                    <input type="text" id="topbarSearchInput" placeholder="Tìm kiếm..." oninput="app.handleTopbarSearch(this.value)">
                 </div>
-                <div class="topbar-actions" style="display: flex; align-items: center; gap: 1rem;">
-                    <!-- Dark Mode Switch -->
-                    <button id="themeToggleBtn" style="background:none; border:none; font-size:1.5rem; color:var(--text-color); cursor:pointer; display:flex; align-items:center;">
-                        <i class='bx bx-moon'></i>
-                    </button>
-                    <!-- Language Switcher -->
-                    <div class="lang-switch" style="display: flex; gap: 0.5rem; margin-right: 1rem; border-left: 1px solid var(--border-color); padding-left: 1rem;">
-                        <img src="https://flagcdn.com/24x18/vn.png" alt="VI" id="langViBtnTopbar" style="cursor: pointer; opacity: 1; border-radius: 2px;" onclick="i18n.setLanguage('vi')">
-                        <img src="https://flagcdn.com/24x18/gb.png" alt="EN" id="langEnBtnTopbar" style="cursor: pointer; opacity: 0.5; border-radius: 2px;" onclick="i18n.setLanguage('en')">
-                    </div>
-                    <div class="user-profile" onclick="app.openProfileModal()" style="cursor: pointer;" title="Trang cá nhân">
-                        <img id="topbarAvatar" src="https://ui-avatars.com/api/?name=User&background=4F46E5&color=fff" alt="User">
-                        <span id="topbarName" style="font-weight: 500; font-size: 0.875rem; color: var(--text-main);">User</span>
+
+                <div class="topbar-actions" style="flex: 1; display: flex; align-items: center; justify-content: flex-end; gap: 1rem;">
+
+                    <div class="avatar-dropdown-wrap" id="avatarDropdownWrap">
+                        <img id="topbarAvatar" src="https://ui-avatars.com/api/?name=User&background=4F46E5&color=fff" alt="User"
+                            style="width:36px; height:36px; border-radius:50%; object-fit:cover; cursor:pointer; border:2px solid var(--border-color);"
+                            onclick="app.toggleAvatarDropdown()" title="Tài khoản">
+                        <div class="avatar-dropdown" id="avatarDropdown">
+                            <div class="avatar-dropdown-header">
+                                <img id="avatarDropMenuImg" src="https://ui-avatars.com/api/?name=User&background=4F46E5&color=fff" alt="User">
+                                <div>
+                                    <div id="avatarDropName" style="font-weight:600; font-size:0.9rem; color:var(--text-color);">User</div>
+                                    <div id="avatarDropUsername" style="font-size:0.75rem; color:var(--text-muted);"></div>
+                                    <div id="avatarProBadge" style="display:none; margin-top:3px;"><span class="pro-badge">👑 PRO</span></div>
+                                </div>
+                            </div>
+                            <div class="avatar-dropdown-divider"></div>
+                            <!-- Profile -->
+                            <button class="avatar-drop-item" onclick="app.openProfileDropdown()">
+                                <i class='bx bx-user-circle'></i> <span data-i18n="dropdown.profile">Thông tin cá nhân</span>
+                            </button>
+                            <!-- Language row -->
+                            <div class="avatar-drop-lang-row">
+                                <i class='bx bx-globe' style="font-size:1rem; color:var(--text-muted);"></i>
+                                <span data-i18n="dropdown.language">Ngôn ngữ</span>
+                                <button class="lang-flag-btn" id="langViBtnDrop" onclick="i18n.setLanguage('vi'); app.updateLangFlags();">
+                                    <img src="https://flagcdn.com/24x18/vn.png" alt="VI">
+                                </button>
+                                <button class="lang-flag-btn" id="langEnBtnDrop" onclick="i18n.setLanguage('en'); app.updateLangFlags();">
+                                    <img src="https://flagcdn.com/24x18/gb.png" alt="EN">
+                                </button>
+                            </div>
+                            <!-- Theme picker toggle -->
+                            <button class="avatar-drop-item" onclick="app.toggleThemePanel()" id="themePanelToggle">
+                                <i class='bx bx-palette'></i>
+                                <span data-i18n="dropdown.theme">Giao diện</span>
+                                <span id="currentThemeName" style="margin-left:auto; font-size:0.75rem; color:var(--text-muted);">Indigo</span>
+                                <i class='bx bx-chevron-down' id="themePanelChevron" style="font-size:1rem; color:var(--text-muted); transition:transform 0.2s;"></i>
+                            </button>
+                            <!-- Inline theme panel -->
+                            <div class="theme-panel" id="themePanel">
+                                <div class="theme-panel-section" data-i18n="dropdown.theme_color">Màu sắc</div>
+                                <div class="theme-swatches" id="themeSwatches">
+                                    <div class="theme-swatch" data-color="indigo" style="background:#4F46E5;" title="Indigo" onclick="app.setThemeColor('indigo', 'Indigo')"></div>
+                                    <div class="theme-swatch" data-color="rose" style="background:#E11D48;" title="Rose" onclick="app.setThemeColor('rose', 'Rose')"></div>
+                                    <div class="theme-swatch" data-color="emerald" style="background:#059669;" title="Emerald" onclick="app.setThemeColor('emerald', 'Emerald')"></div>
+                                    <div class="theme-swatch" data-color="slate" style="background:#475569;" title="Slate" onclick="app.setThemeColor('slate', 'Slate')"></div>
+                                    <div class="theme-swatch" data-color="amber" style="background:#D97706;" title="Amber" onclick="app.setThemeColor('amber', 'Amber')"></div>
+                                    <div class="theme-swatch" data-color="sky" style="background:#0284C7;" title="Sky" onclick="app.setThemeColor('sky', 'Sky')"></div>
+                                </div>
+                                <div class="theme-panel-section" style="display:flex; align-items:center; justify-content:space-between;">
+                                    Gradient <span id="gradientProNote" class="pro-badge" style="display:none;">👑 PRO</span>
+                                </div>
+                                <div class="theme-swatches" id="gradientSwatches" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.5rem; max-width: 320px;">
+                                    <div class="theme-swatch" data-color="sunset" style="background:linear-gradient(135deg,#f97316,#ec4899);" title="Sunset" onclick="app.setThemeColor('sunset','Sunset',true)">
+                                        <span class="lock-icon" id="lockSunset">👑</span>
+                                    </div>
+                                    <div class="theme-swatch" data-color="ocean" style="background:linear-gradient(135deg,#0ea5e9,#6366f1);" title="Ocean" onclick="app.setThemeColor('ocean','Ocean',true)">
+                                        <span class="lock-icon" id="lockOcean">👑</span>
+                                    </div>
+                                    <div class="theme-swatch" data-color="aurora" style="background:linear-gradient(135deg,#10b981,#3b82f6);" title="Aurora" onclick="app.setThemeColor('aurora','Aurora',true)">
+                                        <span class="lock-icon" id="lockAurora">👑</span>
+                                    </div>
+                                    <div class="theme-swatch" data-color="candy" style="background:linear-gradient(135deg,#a855f7,#ec4899);" title="Candy" onclick="app.setThemeColor('candy','Candy',true)">
+                                        <span class="lock-icon" id="lockCandy">👑</span>
+                                    </div>
+                                    <div class="theme-swatch" data-color="forest" style="background:linear-gradient(135deg,#10b981,#84cc16);" title="Forest" onclick="app.setThemeColor('forest','Forest',true)">
+                                        <span class="lock-icon" id="lockForest">👑</span>
+                                    </div>
+                                    <div class="theme-swatch" data-color="midnight" style="background:linear-gradient(135deg,#4f46e5,#c084fc);" title="Midnight" onclick="app.setThemeColor('midnight','Midnight',true)">
+                                        <span class="lock-icon" id="lockMidnight">👑</span>
+                                    </div>
+                                    <div class="theme-swatch" data-color="flame" style="background:linear-gradient(135deg,#dc2626,#f97316);" title="Flame" onclick="app.setThemeColor('flame','Flame',true)">
+                                        <span class="lock-icon" id="lockFlame">👑</span>
+                                    </div>
+                                    <div class="theme-swatch" data-color="nebula" style="background:linear-gradient(135deg,#7c3aed,#06b6d4);" title="Nebula" onclick="app.setThemeColor('nebula','Nebula',true)">
+                                        <span class="lock-icon" id="lockNebula">👑</span>
+                                    </div>
+                                    <div class="theme-swatch" data-color="sakura" style="background:linear-gradient(135deg,#f43f5e,#fda4af);" title="Sakura" onclick="app.setThemeColor('sakura','Sakura',true)">
+                                        <span class="lock-icon" id="lockSakura">👑</span>
+                                    </div>
+                                    <div class="theme-swatch" data-color="cyber" style="background:linear-gradient(135deg,#d946ef,#eab308);" title="Cyberpunk" onclick="app.setThemeColor('cyber','Cyberpunk',true)">
+                                        <span class="lock-icon" id="lockCyber">👑</span>
+                                    </div>
+                                    <div class="theme-swatch" data-color="solar" style="background:linear-gradient(135deg,#eab308,#ea580c);" title="Solar" onclick="app.setThemeColor('solar','Solar',true)">
+                                        <span class="lock-icon" id="lockSolar">👑</span>
+                                    </div>
+                                </div>
+                                <div class="dark-toggle-row">
+                                    <i class='bx bx-moon' style="font-size:1rem; color:var(--text-muted);"></i>
+                                    <span data-i18n="dropdown.dark_mode">Chế độ tối</span>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="darkModeToggle" onchange="app.toggleDarkMode(this.checked)">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="avatar-dropdown-divider"></div>
+                            <!-- Subscription -->
+                            <button class="avatar-drop-item" onclick="app.openPlanModal()" id="subscriptionMenuItem">
+                                <i class='bx bxs-crown' style="color:#f59e0b;"></i>
+                                <span id="subscriptionMenuLabel" data-i18n="dropdown.upgrade">Nâng cấp Pro</span>
+                                <span class="pro-badge" id="subscriptionMenuBadge" style="display:none;" data-i18n="dropdown.pro_active">✓ Đang dùng</span>
+                            </button>
+                            <button class="avatar-drop-item" id="adminPanelLink" onclick="app.switchSection('appSectionAdmin')" style="display: none; padding: 0.5rem 1rem; color: var(--text-main); font-size: 0.9rem;">
+                                <i class='bx bx-shield-quarter'></i> <span data-i18n="dropdown.admin">Quản trị Hệ thống</span>
+                            </button>
+                            <div class="avatar-dropdown-divider"></div>
+                            <button class="avatar-drop-item avatar-drop-logout" onclick="logout()">
+                                <i class='bx bx-log-out'></i> <span data-i18n="dropdown.logout">Đăng xuất</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </header>
@@ -194,29 +316,80 @@
                 <div class="dashboard-header">
                     <div>
                         <h1 id="greetingTitle">Chào bạn!</h1>
-                        <p>Chào mừng bạn quay trở lại. Dưới đây là một số gợi ý cho bạn hôm nay.</p>
+                        <p data-i18n="overview.subtitle">Chào mừng bạn quay trở lại. Dưới đây là một số gợi ý cho bạn hôm nay.</p>
                     </div>
                 </div>
 
-                <div class="suggestions-container" style="margin-top: 1rem; padding: 0 2rem 2rem 2rem;">
+                <div class="suggestions-container" style="padding: 0 2rem 2rem 2rem;">
                     <h3 style="margin-bottom: 1rem; color: var(--text-color); font-size: 1.1rem; font-weight: 600;" data-i18n="overview.quick_access">Gợi ý truy cập nhanh</h3>
                     <div class="suggestion-cards" style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
                         <!-- Quản lý phòng -->
-                        <div class="suggestion-card" onclick="document.querySelector('[data-section=appSectionRoomList]').click()" style="--hover-border: var(--primary-color); width: 320px; background: var(--card-bg); padding: 1.5rem; border-radius: var(--radius-lg); cursor: pointer; border: 1.5px solid #D1D5DB; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; transition: all 0.2s ease;">
+                        <div class="suggestion-card" onclick="document.querySelector('[data-section=appSectionRoomList]').click()" style="--hover-border: var(--primary-color); width: 280px; background: var(--card-bg); padding: 1.5rem; border-radius: var(--radius-lg); cursor: pointer; border: 1.5px solid #D1D5DB; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; transition: all 0.2s ease;">
                             <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(79, 70, 229, 0.1); color: var(--primary-color); display: flex; align-items: center; justify-content: center; font-size: 1.75rem; margin-bottom: 1rem;">
                                 <i class='bx bx-building-house'></i>
                             </div>
                             <h4 style="margin-bottom: 0.5rem; color: var(--text-color); font-size: 1.1rem;" data-i18n="overview.manage_rooms">Quản lý phòng trọ</h4>
                             <p style="color: var(--text-muted); font-size: 0.875rem; line-height: 1.5;" data-i18n="overview.manage_rooms_desc">Truy cập gần đây. Xem danh sách, thêm phòng mới và cập nhật trạng thái phòng nhanh chóng.</p>
                         </div>
-                        
-                        <!-- Hợp đồng -->
-                        <div class="suggestion-card" onclick="document.querySelector('[data-section=appSectionContract]').click()" style="--hover-border: #10b981; width: 320px; background: var(--card-bg); padding: 1.5rem; border-radius: var(--radius-lg); cursor: pointer; border: 1.5px solid #D1D5DB; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; transition: all 0.2s ease;">
+
+                        <!-- Thông tin cá nhân -->
+                        <div class="suggestion-card" onclick="app.openProfileModal()" style="--hover-border: #10b981; width: 280px; background: var(--card-bg); padding: 1.5rem; border-radius: var(--radius-lg); cursor: pointer; border: 1.5px solid #D1D5DB; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; transition: all 0.2s ease;">
                             <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(16, 185, 129, 0.1); color: #10b981; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; margin-bottom: 1rem;">
-                                <i class='bx bx-receipt'></i>
+                                <i class='bx bx-user-circle'></i>
                             </div>
-                            <h4 style="margin-bottom: 0.5rem; color: var(--text-color); font-size: 1.1rem;" data-i18n="overview.manage_contracts">Quản lý Hợp đồng</h4>
-                            <p style="color: var(--text-muted); font-size: 0.875rem; line-height: 1.5;" data-i18n="overview.manage_contracts_desc">Tạo hợp đồng thuê mới, gia hạn hoặc xem các hợp đồng sắp hết hạn trong tháng này.</p>
+                            <h4 style="margin-bottom: 0.5rem; color: var(--text-color); font-size: 1.1rem;" data-i18n="overview.profile">Thông tin cá nhân</h4>
+                            <p style="color: var(--text-muted); font-size: 0.875rem; line-height: 1.5;" data-i18n="overview.profile_desc">Quản lý thông tin tài khoản, thay đổi ảnh đại diện, mật khẩu và thông tin liên hệ của bạn.</p>
+                        </div>
+
+                        <!-- Hóa đơn -->
+                        <div class="suggestion-card" onclick="document.querySelector('[data-section=appSectionBill]').click()" style="--hover-border: #f59e0b; width: 280px; background: var(--card-bg); padding: 1.5rem; border-radius: var(--radius-lg); cursor: pointer; border: 1.5px solid #D1D5DB; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; transition: all 0.2s ease;">
+                            <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(245, 158, 11, 0.1); color: #f59e0b; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; margin-bottom: 1rem;">
+                                <i class='bx bx-money-withdraw'></i>
+                            </div>
+                            <h4 style="margin-bottom: 0.5rem; color: var(--text-color); font-size: 1.1rem;" data-i18n="overview.manage_bills">Quản lý Hóa đơn</h4>
+                            <p style="color: var(--text-muted); font-size: 0.875rem; line-height: 1.5;" data-i18n="overview.manage_bills_desc">Tạo và theo dõi hóa đơn tiền nhà hàng tháng. Xuất PDF, đánh dấu đã thu tiền.</p>
+                        </div>
+
+                        <!-- Điều chỉnh giá -->
+                        <div class="suggestion-card" onclick="billApp.openPresetModal()" style="--hover-border: #8b5cf6; width: 280px; background: var(--card-bg); padding: 1.5rem; border-radius: var(--radius-lg); cursor: pointer; border: 1.5px solid #D1D5DB; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; transition: all 0.2s ease;">
+                            <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(139, 92, 246, 0.1); color: #8b5cf6; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; margin-bottom: 1rem;">
+                                <i class='bx bx-slider-alt'></i>
+                            </div>
+                            <h4 style="margin-bottom: 0.5rem; color: var(--text-color); font-size: 1.1rem;" data-i18n="overview.manage_presets">Thiết lập Bảng giá</h4>
+                            <p style="color: var(--text-muted); font-size: 0.875rem; line-height: 1.5;" data-i18n="overview.manage_presets_desc">Tạo các preset giá điện, nước, internet để tự động điền vào hóa đơn nhanh hơn.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Thống kê Biểu đồ -->
+                <div class="charts-container" style="padding: 0 2rem 2rem 2rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <h3 style="color: var(--text-color); font-size: 1.1rem; font-weight: 600;" data-i18n="overview.stats">Thống kê Kinh doanh</h3>
+                        <div style="display: flex; gap: 1rem;">
+                            <select id="chartTypeSelect" class="form-control" onchange="app.renderCharts()" style="padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-main);">
+                                <option value="bar" data-i18n="overview.chart_bar">Biểu đồ Cột (Bar)</option>
+                                <option value="line" data-i18n="overview.chart_line">Biểu đồ Đường (Line)</option>
+                            </select>
+                            <select id="chartTimeframeSelect" class="form-control" onchange="app.renderCharts()" style="padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-main);">
+                                <option value="week" data-i18n="overview.by_week">Theo Tuần</option>
+                                <option value="month" selected data-i18n="overview.by_month">Theo Tháng</option>
+                                <option value="quarter" data-i18n="overview.by_quarter">Theo Quý</option>
+                                <option value="year" data-i18n="overview.by_year">Theo Năm</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                        <!-- Chart 1: Occupied Rooms -->
+                        <div style="background: var(--card-bg); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                            <h4 style="margin-bottom: 1rem; text-align: center; color: var(--text-color);" data-i18n="overview.occupied_chart_title">Số lượng phòng có khách</h4>
+                            <canvas id="occupiedRoomsChart" width="400" height="250"></canvas>
+                        </div>
+
+                        <!-- Chart 2: Revenue -->
+                        <div style="background: var(--card-bg); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                            <h4 style="margin-bottom: 1rem; text-align: center; color: var(--text-color);" data-i18n="overview.revenue">Doanh thu từ hóa đơn</h4>
+                            <canvas id="revenueChart" width="400" height="250"></canvas>
                         </div>
                     </div>
                 </div>
@@ -225,23 +398,24 @@
             <div id="appSectionRoomList" class="app-section">
                 <div class="dashboard-header">
                     <div>
-                        <h1>Quản lý Phòng trọ</h1>
-                        <p>Theo dõi và quản lý các phòng trọ của bạn dễ dàng.</p>
+                        <h1 data-i18n="rooms.page_title">Quản lý Phòng trọ</h1>
+                        <p data-i18n="rooms.page_subtitle">Theo dõi và quản lý các phòng trọ của bạn dễ dàng.</p>
                     </div>
-                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
                         <button class="btn-danger" id="btnDeleteSelected" onclick="app.deleteSelectedRooms()" style="display: none;">
-                            <i class='bx bx-trash'></i> Xóa đã chọn (<span id="selectedCount">0</span>)
+                            <i class='bx bx-trash'></i> <span data-i18n="rooms.delete_selected">Xóa đã chọn</span> (<span id="selectedCount">0</span>)
                         </button>
                         <select id="sortRooms" class="btn-secondary" style="padding: 0.5rem 1rem; border-color: var(--border-color); outline: none; appearance: auto; cursor: pointer;" onchange="app.sortRooms(this.value)">
-                            <option value="default">Sắp xếp mặc định</option>
-                            <option value="name_asc">Tên: Tăng dần (A-Z)</option>
-                            <option value="name_desc">Tên: Giảm dần (Z-A)</option>
+                            <option value="default" data-i18n="rooms.sort_default">Sắp xếp mặc định</option>
+                            <option value="name_asc" data-i18n="rooms.sort_asc">Tên: Tăng dần (A-Z)</option>
+                            <option value="name_desc" data-i18n="rooms.sort_desc">Tên: Giảm dần (Z-A)</option>
                         </select>
-                        <button class="btn-secondary" onclick="app.openCreateMultipleModal()">
-                            <i class='bx bx-layer-plus'></i> Tạo nhiều phòng
+                        <button class="btn-secondary btn-with-crown" id="btnBulkCreate" onclick="app.openCreateMultipleModal()" style="position:relative;">
+                            <i class='bx bx-layer-plus'></i> <span data-i18n="rooms.bulk_create">Tạo nhiều phòng</span>
+                            <span class="btn-crown-badge" id="crownBulkCreate" title="Tính năng Pro">👑</span>
                         </button>
                         <button class="btn-primary" onclick="app.openCreateModal()">
-                            <i class='bx bx-plus'></i> Thêm phòng mới
+                            <i class='bx bx-plus'></i> <span data-i18n="rooms.add_btn">Thêm phòng mới</span>
                         </button>
                     </div>
                 </div>
@@ -255,18 +429,19 @@
             <div id="appSectionBill" class="app-section" style="display: none;">
                 <div class="dashboard-header">
                     <div>
-                        <h1>Quản lý Hóa đơn</h1>
-                        <p>Tạo hóa đơn và thiết lập giá dịch vụ.</p>
+                        <h1 data-i18n="bill.title">Quản lý Hóa đơn</h1>
+                        <p data-i18n="bill.subtitle">Tạo hóa đơn và thiết lập giá dịch vụ.</p>
                     </div>
-                    <div style="display: flex; gap: 1rem;">
+                    <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
                         <button class="btn-danger" id="btnDeleteSelectedBills" style="display:none;" onclick="billApp.deleteSelectedBills()">
-                            <i class='bx bx-trash'></i> Xóa mục đã chọn (<span id="selectedBillCount">0</span>)
+                            <i class='bx bx-trash'></i> <span data-i18n="bill.delete_selected">Xóa mục đã chọn</span> (<span id="selectedBillCount">0</span>)
                         </button>
-                        <button class="btn-secondary" onclick="billApp.openPresetModal()">
-                            <i class='bx bx-slider-alt'></i> Điều chỉnh giá
+                        <button class="btn-secondary btn-with-crown" id="btnPresetPrice" onclick="billApp.openPresetModal()" style="position:relative;">
+                            <i class='bx bx-slider-alt'></i> <span data-i18n="bill.price_preset_btn">Điều chỉnh giá</span>
+                            <span class="btn-crown-badge" id="crownPresetPrice" title="Tính năng Pro">👑</span>
                         </button>
                         <button class="btn-primary" onclick="billApp.openBillModal()">
-                            <i class='bx bx-receipt'></i> Tạo hóa đơn mới
+                            <i class='bx bx-receipt'></i> <span data-i18n="bill.create_btn">Tạo hóa đơn mới</span>
                         </button>
                     </div>
                 </div>
@@ -294,6 +469,58 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Admin Panel Section -->
+            <div id="appSectionAdmin" class="app-section" style="display: none;">
+                <div class="dashboard-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+                    <div>
+                        <h1>Quản trị Hệ thống</h1>
+                        <p>Quản lý tài khoản và yêu cầu nâng cấp Pro</p>
+                    </div>
+                    <div style="display: flex; gap: 1rem;">
+                        <button class="btn-secondary active" id="btnTabUsers" onclick="app.switchAdminTab('users')"><i class='bx bx-group'></i> Danh sách Tài khoản</button>
+                        <button class="btn-secondary" id="btnTabRequests" onclick="app.switchAdminTab('requests')"><i class='bx bx-git-pull-request'></i> Yêu cầu Pro</button>
+                    </div>
+                </div>
+
+                <!-- Users Tab -->
+                <div id="adminTabUsers" style="padding: 0 2rem;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
+                        <h3>Danh sách Người dùng</h3>
+                        <div class="search-bar" style="width: 250px; border: 1px solid var(--border-color);">
+                            <i class='bx bx-search'></i>
+                            <input type="text" id="adminUserSearch" placeholder="Tìm tài khoản..." oninput="app.renderAdminUsers()">
+                        </div>
+                    </div>
+                    <div id="adminUsersGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem;">
+                        <!-- Users rendered here -->
+                    </div>
+                </div>
+
+                <!-- Requests Tab -->
+                <div id="adminTabRequests" style="display:none; padding: 0 2rem;">
+                    <h3>Yêu cầu Nâng cấp Pro đang chờ duyệt</h3>
+                    <div id="adminRequestsList" style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem;">
+                        <!-- Requests rendered here -->
+                    </div>
+                </div>
+            </div>
+            
+            <div id="appSectionContractHistory" class="app-section" style="display: none;">
+                <div class="dashboard-header">
+                    <div>
+                        <h1 data-i18n="contract.history_title">Lịch sử Hợp đồng</h1>
+                        <p data-i18n="contract.history_subtitle">Tra cứu lại lịch sử cho thuê của từng phòng.</p>
+                    </div>
+                </div>
+                
+                <div style="padding: 0 2rem 2rem 2rem;">
+                    <div id="contractHistoryList" style="display: flex; flex-direction: column; gap: 1rem;">
+                        <!-- Contract history grouped by room will be rendered here -->
+                    </div>
+                </div>
+            </div>
+
         </main>
     </div>
 
@@ -333,47 +560,59 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Trạng thái</label>
+                            <label data-i18n="room.status">Trạng thái</label>
                             <select id="roomStatus" required>
-                                <option value="Available">Available</option>
-                                <option value="Occupied">Occupied</option>
-                                <option value="Maintenance">Maintenance</option>
+                                <option value="Available" data-i18n="status.Available">Trống</option>
+                                <option value="Occupied" data-i18n="status.Occupied">Đang thuê</option>
+                                <option value="Maintenance" data-i18n="status.Maintenance">Bảo trì</option>
                             </select>
                         </div>
                     </div>
 
                     <div class="form-section-title" style="margin-top: 1.5rem;">2. Hình ảnh tình trạng & Biên bản bàn giao</div>
-                    <div class="form-group">
-                        <label>Tải ảnh lên (Có thể chọn nhiều ảnh)</label>
-                        <input type="file" id="roomImages" accept="image/png, image/jpeg" multiple class="file-input">
-                    </div>
-                    <div class="form-group" id="videoInputsContainer">
-                        <label>Đường dẫn Video (URL)</label>
-                        <input type="url" class="video-url-input" placeholder="https://youtube.com/...">
+                    <div class="form-group" id="roomMediaGroup">
+                        <label style="display:flex; align-items:center; gap:0.4rem;">Tải ảnh / video lên (Có thể chọn nhiều) <span class="pro-crown-icon" id="crownMediaUpload" onclick="app.openPlanModal()" title="Tính năng Pro">👑</span></label>
+                        <input type="file" id="roomImages" accept="image/png,image/jpeg,video/mp4,video/quicktime,video/webm" multiple class="file-input">
+                        <div id="mediaUploadLocked" style="display:none; padding:0.75rem 1rem; background:rgba(245,158,11,0.08); border:1.5px dashed #f59e0b; border-radius:8px; color:#92400e; font-size:0.85rem; cursor:pointer;" onclick="app.openPlanModal()">
+                            👑 Tính năng upload ảnh/video chỉ dành cho <strong>Pro</strong>. Nhấn để nâng cấp.
+                        </div>
                     </div>
 
                     <div id="contractSection" style="display: none;">
                         <div class="form-section-title" style="margin-top: 1.5rem;">3. Thông tin Hợp đồng</div>
                         <div class="form-group-row">
                             <div class="form-group">
-                                <label>Tên người thuê</label>
+                                <label>Tên người thuê chính</label>
                                 <input type="text" id="tenantName" placeholder="Nguyễn Văn A">
                             </div>
                             <div class="form-group">
                                 <label>Số lượng người ở</label>
-                                <input type="number" id="tenantCount" placeholder="2" min="1" value="1">
+                                <input type="number" id="tenantCount" placeholder="2" min="1" value="1"
+                                    oninput="app.renderTenantFields()">
+                            </div>
+                        </div>
+                        <div class="form-group-row">
+                            <div class="form-group">
+                                <label>Số điện thoại liên lạc</label>
+                                <input type="tel" id="tenantPhone" placeholder="0912 345 678">
+                            </div>
+                            <div class="form-group">
+                                <label>Email liên lạc</label>
+                                <input type="email" id="tenantEmail" placeholder="email@example.com">
                             </div>
                         </div>
                         <div class="form-group-row">
                             <div class="form-group">
                                 <label>Ngày bắt đầu</label>
-                                <input type="date" id="contractStart">
+                                <input type="date" id="contractStart" onchange="app.onContractStartChange()">
                             </div>
                             <div class="form-group">
                                 <label>Ngày kết thúc</label>
                                 <input type="date" id="contractEnd">
                             </div>
                         </div>
+                        <!-- Dynamic per-tenant info -->
+                        <div id="tenantFieldsContainer" style="margin-top: 1rem;"></div>
                     </div>
 
                     <div class="modal-footer" style="margin-top: 2rem;">
@@ -466,14 +705,30 @@
             <button class="btn-close absolute-close" onclick="app.closeModals()"><i class='bx bx-x'></i></button>
             
             <div class="preview-media">
-                <div class="media-gallery" id="previewGallery">
-                    <!-- Images/Videos injected here -->
+                <!-- Slideshow -->
+                <div class="slideshow-container" id="slideshowContainer">
+                    <div class="slideshow-track" id="slideshowTrack">
+                        <!-- Slides injected by JS -->
+                    </div>
+                    <button class="slide-nav slide-prev" id="slidePrev" onclick="app.slidePrev()">
+                        <i class='bx bx-chevron-left'></i>
+                    </button>
+                    <button class="slide-nav slide-next" id="slideNext" onclick="app.slideNext()">
+                        <i class='bx bx-chevron-right'></i>
+                    </button>
+                    <div class="slide-counter" id="slideCounter">1 / 1</div>
+                </div>
+                <!-- Per-slide note -->
+                <div style="padding: 0.75rem 1rem; background: var(--bg-color); border-top: 1px solid var(--border-color);">
+                    <textarea id="slideNoteInput" data-i18n="rooms.add_media_note" placeholder="Thêm ghi chú cho ảnh/video này..." rows="2"
+                        style="width:100%; resize:none; background:var(--card-bg); color:var(--text-color); border:1px solid var(--border-color); border-radius:8px; padding:0.5rem 0.75rem; font-size:0.85rem; outline:none;"
+                        oninput="app.saveSlideNote()"></textarea>
                 </div>
             </div>
 
             <div class="preview-details">
                 <div class="preview-header">
-                    <h2 id="previewName">Tên Phòng</h2>
+                    <h2 id="previewName" data-i18n="rooms.detail_name">Tên Phòng</h2>
                     <div class="status-badge" id="previewStatus">Available</div>
                 </div>
                 
@@ -483,32 +738,32 @@
                     <div class="info-item">
                         <i class='bx bx-area'></i>
                         <div>
-                            <span>Diện tích</span>
+                            <span data-i18n="rooms.detail_area">Diện tích</span>
                             <strong id="previewArea">25 m²</strong>
                         </div>
                     </div>
                     <div class="info-item">
                         <i class='bx bx-building-house'></i>
                         <div>
-                            <span>Loại phòng</span>
+                            <span data-i18n="rooms.detail_type">Loại phòng</span>
                             <strong id="previewType">Studio</strong>
                         </div>
                     </div>
                 </div>
 
                 <div id="previewContractSection" style="display: none; background: var(--bg-color); padding: 1.5rem; border-radius: var(--radius-lg); margin-bottom: 2rem;">
-                    <h4 style="margin-bottom: 1rem; color: var(--primary-color);">Hợp đồng hiện tại</h4>
+                    <h4 style="margin-bottom: 1rem; color: var(--primary-color);" data-i18n="rooms.detail_current_contract">Hợp đồng hiện tại</h4>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.875rem;">
-                        <div><span style="color: var(--text-muted)">Người thuê:</span> <strong id="previewTenantName">...</strong></div>
-                        <div><span style="color: var(--text-muted)">Số người ở:</span> <strong id="previewTenantCount">...</strong></div>
-                        <div><span style="color: var(--text-muted)">Từ ngày:</span> <strong id="previewStartDate">...</strong></div>
-                        <div><span style="color: var(--text-muted)">Đến ngày:</span> <strong id="previewEndDate">...</strong></div>
+                        <div><span style="color: var(--text-muted)" data-i18n="rooms.detail_tenant">Người thuê:</span> <strong id="previewTenantName">...</strong></div>
+                        <div><span style="color: var(--text-muted)" data-i18n="rooms.detail_tenant_count">Số người ở:</span> <strong id="previewTenantCount">...</strong></div>
+                        <div><span style="color: var(--text-muted)" data-i18n="rooms.detail_start_date">Từ ngày:</span> <strong id="previewStartDate">...</strong></div>
+                        <div><span style="color: var(--text-muted)" data-i18n="rooms.detail_end_date">Đến ngày:</span> <strong id="previewEndDate">...</strong></div>
                     </div>
                 </div>
 
                 <div class="preview-actions">
-                    <button class="btn-secondary" id="btnEditRoom" style="flex:1"><i class='bx bx-edit-alt'></i> Sửa phòng</button>
-                    <button class="btn-danger" id="btnDeleteRoom"><i class='bx bx-trash'></i> Xóa</button>
+                    <button class="btn-secondary" id="btnEditRoom" style="flex:1"><i class='bx bx-edit-alt'></i> <span data-i18n="rooms.edit_room_btn">Sửa phòng</span></button>
+                    <button class="btn-danger" id="btnDeleteRoom"><i class='bx bx-trash'></i> <span data-i18n="rooms.delete_room_btn">Xóa</span></button>
                 </div>
             </div>
         </div>
@@ -518,7 +773,7 @@
     <div class="modal-overlay" id="pricePresetModal">
         <div class="modal-card modal-lg">
             <div class="modal-header">
-                <h3>Điều chỉnh giá (Presets)</h3>
+                <h3 data-i18n="bill.preset_title">Điều chỉnh giá (Presets)</h3>
                 <button class="btn-close" onclick="billApp.closeModals()"><i class='bx bx-x'></i></button>
             </div>
             <div class="modal-body">
@@ -533,7 +788,7 @@
                     <input type="hidden" id="presetId">
                     <div class="form-section-title">Tạo / Sửa Preset</div>
                     <div class="form-group">
-                        <label>Tên Preset</label>
+                        <label data-i18n="bill.preset_name">Tên Preset</label>
                         <input type="text" id="presetName" required placeholder="VD: Gói tiêu chuẩn 2026">
                     </div>
                     <div class="form-group-row">
@@ -560,9 +815,21 @@
                             <input type="number" id="presetParkingFee" required value="100000">
                         </div>
                     </div>
+
+                    <!-- Custom extra fees -->
+                    <div class="form-section-title" style="margin-top:1rem; display:flex; align-items:center; justify-content:space-between;">
+                        <span data-i18n="bill.other_services_label">Các khoản phí tự chọn</span>
+                        <button type="button" class="btn-secondary" style="padding:0.25rem 0.75rem; font-size:0.8rem;" onclick="billApp.addExtraFeeRow()">
+                            <i class='bx bx-plus'></i> Thêm khoản phí
+                        </button>
+                    </div>
+                    <div id="extraFeesContainer" style="display:flex; flex-direction:column; gap:0.5rem; margin-bottom:0.5rem;">
+                        <!-- Extra fee rows injected here -->
+                    </div>
+
                     <div class="modal-footer" style="margin-top: 1rem; display:flex; justify-content:flex-end; gap:0.5rem;">
-                        <button type="button" class="btn-secondary" onclick="billApp.resetPresetForm()">Tạo mới trắng</button>
-                        <button type="submit" class="btn-primary">Lưu Preset</button>
+                        <button type="button" class="btn-secondary" onclick="billApp.resetPresetForm()" data-i18n="bill.preset_new_btn">Tạo mới trắng</button>
+                        <button type="submit" class="btn-primary" data-i18n="bill.preset_save_btn">Lưu Preset</button>
                     </div>
                 </form>
             </div>
@@ -573,7 +840,7 @@
     <div class="modal-overlay" id="billModal">
         <div class="modal-card modal-xl">
             <div class="modal-header">
-                <h3>Tạo hóa đơn mới</h3>
+                <h3 data-i18n="bill.modal_title">Tạo hóa đơn mới</h3>
                 <button class="btn-close" onclick="billApp.closeModals()"><i class='bx bx-x'></i></button>
             </div>
             <div class="modal-body" style="padding: 0;">
@@ -581,44 +848,44 @@
                     <!-- Left: Form -->
                     <div class="bill-form-side">
                         <div class="form-group">
-                            <label>Chọn phòng (Đang thuê)</label>
+                            <label data-i18n="bill.select_room">Chọn phòng (Đang thuê)</label>
                             <select id="billRoomSelect" required onchange="billApp.onRoomSelect()">
-                                <option value="">-- Chọn phòng --</option>
+                                <option value="" data-i18n="bill.select_room_placeholder">-- Chọn phòng --</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Chọn Preset giá (Tùy chọn)</label>
+                            <label data-i18n="bill.select_preset">Chọn mức giá tùy chỉnh <span class="btn-crown-badge" style="position:relative; display:inline-flex; top:0; right:0; margin-left:4px; color:#fff;">👑</span></label>
                             <select id="billPresetSelect" onchange="billApp.onPresetSelect()">
-                                <option value="">-- Tự nhập tay --</option>
+                                <option value="" data-i18n="bill.preset_placeholder">-- Tự nhập tay --</option>
                             </select>
                         </div>
 
                         <div class="form-group">
-                            <label>Tiền phòng (VNĐ)</label>
-                            <input type="number" id="billRoomCharge" placeholder="Tự động lấy từ phòng" oninput="billApp.calculateBill()">
+                            <label data-i18n="bill.room_charge">Tiền phòng (VNĐ)</label>
+                            <input type="number" id="billRoomCharge" data-i18n-placeholder="bill.room_charge_placeholder" placeholder="Tự động lấy từ phòng" oninput="billApp.calculateBill()">
                         </div>
 
-                        <div class="form-section-title">Điện</div>
+                        <div class="form-section-title" data-i18n="bill.electric">Điện</div>
                         <div class="form-group-row">
                             <div class="form-group">
-                                <label>Số điện tiêu thụ</label>
+                                <label data-i18n="bill.electric_num">Số điện tiêu thụ</label>
                                 <input type="number" id="billElectricNum" value="0" min="0" oninput="billApp.calculateBill()">
                             </div>
                             <div class="form-group">
-                                <label>Giá 1 số điện (VNĐ)</label>
+                                <label data-i18n="bill.electric_price">Giá 1 số điện (VNĐ)</label>
                                 <input type="number" id="billElectricPrice" value="0" min="0" oninput="billApp.calculateBill()">
                             </div>
                         </div>
 
-                        <div class="form-section-title">Nước</div>
+                        <div class="form-section-title" data-i18n="bill.water">Nước</div>
                         <div class="form-group" style="flex-direction: row; align-items:center;">
                             <input type="radio" name="waterMode" id="waterModeTotal" value="total" checked onchange="billApp.toggleWaterMode()">
-                            <label for="waterModeTotal" style="margin-right:1rem;">Nhập tổng tiền</label>
+                            <label for="waterModeTotal" style="margin-right:1rem;" data-i18n="bill.water_total_label">Nhập tổng tiền</label>
                             <input type="radio" name="waterMode" id="waterModeVolume" value="volume" onchange="billApp.toggleWaterMode()">
-                            <label for="waterModeVolume">Nhập theo khối</label>
+                            <label for="waterModeVolume" data-i18n="bill.water_volume_label">Nhập theo khối</label>
                         </div>
                         <div class="form-group" id="waterTotalDiv">
-                            <label>Tổng tiền nước (VNĐ)</label>
+                            <label data-i18n="bill.water_total_field">Tổng tiền nước (VNĐ)</label>
                             <input type="number" id="billWaterTotal" value="0" min="0" oninput="billApp.calculateBill()">
                         </div>
                         <div class="form-group-row" id="waterVolumeDiv" style="display:none;">
@@ -632,39 +899,39 @@
                             </div>
                         </div>
 
-                        <div class="form-section-title">Các dịch vụ khác</div>
+                        <div class="form-section-title" data-i18n="bill.other_services">Các dịch vụ khác</div>
                         
                         <div class="service-checkbox-group">
                             <div class="service-checkbox-header">
                                 <input type="checkbox" id="chkManagement" onchange="billApp.calculateBill()">
-                                <label for="chkManagement">Phí quản lý</label>
+                                <label for="chkManagement" data-i18n="bill.management_fee">Phí quản lý</label>
                             </div>
                             <div class="form-group service-input">
-                                <input type="number" id="billManagementFee" placeholder="Giá tiền" oninput="billApp.calculateBill()">
+                                <input type="number" id="billManagementFee" data-i18n="bill.price_amount" placeholder="Giá tiền" oninput="billApp.calculateBill()">
                             </div>
                         </div>
 
                         <div class="service-checkbox-group">
                             <div class="service-checkbox-header">
                                 <input type="checkbox" id="chkInternet" onchange="billApp.calculateBill()">
-                                <label for="chkInternet">Tiền Internet</label>
+                                <label for="chkInternet" data-i18n="bill.internet_fee">Tiền Internet</label>
                             </div>
                             <div class="form-group service-input">
-                                <input type="number" id="billInternetFee" placeholder="Giá tiền" oninput="billApp.calculateBill()">
+                                <input type="number" id="billInternetFee" data-i18n="bill.price_amount" placeholder="Giá tiền" oninput="billApp.calculateBill()">
                             </div>
                         </div>
 
                         <div class="service-checkbox-group">
                             <div class="service-checkbox-header">
                                 <input type="checkbox" id="chkParking" onchange="billApp.calculateBill()">
-                                <label for="chkParking">Phí gửi xe</label>
+                                <label for="chkParking" data-i18n="bill.parking_fee">Phí gửi xe</label>
                             </div>
                             <div class="form-group-row service-input">
                                 <div class="form-group">
-                                    <input type="number" id="billParkingCount" placeholder="Số lượng xe" min="1" value="1" oninput="billApp.calculateBill()">
+                                    <input type="number" id="billParkingCount" data-i18n="bill.vehicle_count" placeholder="Số lượng xe" min="1" value="1" oninput="billApp.calculateBill()">
                                 </div>
                                 <div class="form-group">
-                                    <input type="number" id="billParkingFee" placeholder="Giá 1 xe" oninput="billApp.calculateBill()">
+                                    <input type="number" id="billParkingFee" data-i18n="bill.price_per_vehicle" placeholder="Giá 1 xe" oninput="billApp.calculateBill()">
                                 </div>
                             </div>
                         </div>
@@ -674,58 +941,59 @@
                     <!-- Right: Preview -->
                     <div class="bill-preview-side">
                         <div class="bill-paper" id="billPaperPreview">
-                            <h2 style="text-align:center; color:var(--primary-color); margin-bottom:0.5rem;">HÓA ĐƠN TIỀN NHÀ</h2>
+                            <h2 style="text-align:center; color:var(--primary-color); margin-bottom:0.5rem;" data-i18n="bill.preview_title">HÓA ĐƠN TIỀN NHÀ</h2>
                             <p style="text-align:center; color:var(--text-muted); margin-bottom:1.5rem; font-size:0.875rem;" id="bpMonth">Tháng ... Năm ...</p>
                             
                             <div style="margin-bottom: 1rem; border-bottom: 1px dashed var(--border-color); padding-bottom: 1rem;">
-                                <div><strong>Phòng:</strong> <span id="bpRoomName">...</span></div>
-                                <div><strong>Người thuê:</strong> <span id="bpTenantName">...</span></div>
+                                <div><strong data-i18n="bill.preview_room">Phòng:</strong> <span id="bpRoomName">...</span></div>
+                                <div><strong data-i18n="bill.preview_tenant">Người thuê:</strong> <span id="bpTenantName">...</span></div>
                             </div>
 
                             <table class="bill-table">
                                 <tbody>
                                     <tr>
-                                        <td>Tiền phòng</td>
+                                        <td data-i18n="bill.preview_room_charge">Tiền phòng</td>
                                         <td style="text-align:right" id="bpRoomPrice">0đ</td>
                                     </tr>
                                     <tr>
-                                        <td>Tiền điện <br><small id="bpElectricDesc" style="color:var(--text-muted)">0 số x 0đ</small></td>
+                                        <td><span data-i18n="bill.preview_electric">Tiền điện</span> <br><small id="bpElectricDesc" style="color:var(--text-muted)">0 số x 0đ</small></td>
                                         <td style="text-align:right" id="bpElectricTotal">0đ</td>
                                     </tr>
                                     <tr>
-                                        <td>Tiền nước <br><small id="bpWaterDesc" style="color:var(--text-muted)"></small></td>
+                                        <td><span data-i18n="bill.preview_water">Tiền nước</span> <br><small id="bpWaterDesc" style="color:var(--text-muted)"></small></td>
                                         <td style="text-align:right" id="bpWaterTotal">0đ</td>
                                     </tr>
                                     <tr id="trManagement" style="display:none;">
-                                        <td>Phí quản lý</td>
+                                        <td data-i18n="bill.preview_management">Phí quản lý</td>
                                         <td style="text-align:right" id="bpManagementFee">0đ</td>
                                     </tr>
                                     <tr id="trInternet" style="display:none;">
-                                        <td>Tiền Internet</td>
+                                        <td data-i18n="bill.preview_internet">Tiền Internet</td>
                                         <td style="text-align:right" id="bpInternetFee">0đ</td>
                                     </tr>
                                     <tr id="trParking" style="display:none;">
-                                        <td>Phí gửi xe <br><small id="bpParkingDesc" style="color:var(--text-muted)">0 xe x 0đ</small></td>
+                                        <td><span data-i18n="bill.preview_parking">Phí gửi xe</span> <br><small id="bpParkingDesc" style="color:var(--text-muted)">0 xe x 0đ</small></td>
                                         <td style="text-align:right" id="bpParkingTotal">0đ</td>
                                     </tr>
                                 </tbody>
                                 <tfoot>
                                     <tr>
-                                        <td style="font-weight:700; font-size:1.125rem;">TỔNG CỘNG</td>
+                                        <td style="font-weight:700; font-size:1.125rem;" data-i18n="bill.preview_total">TỔNG CỘNG</td>
                                         <td style="text-align:right; font-weight:700; font-size:1.25rem; color:var(--danger);" id="bpGrandTotal">0đ</td>
                                     </tr>
                                 </tfoot>
                             </table>
 
                             <div style="margin-top: 1.5rem; text-align: center; border-top: 1px dashed var(--border-color); padding-top: 1rem;">
-                                <p style="font-weight:600; font-size:0.875rem; margin-bottom:0.5rem; color:var(--text-muted);">Quét mã QR để thanh toán</p>
+                                <p style="font-weight:600; font-size:0.875rem; margin-bottom:0.5rem; color:var(--text-muted);" data-i18n="bill.qr_scan_label">Quét mã QR để thanh toán</p>
                                 <img id="bpVietQR" src="" alt="VietQR" style="width: 150px; height: 150px; display: none; margin: 0 auto; border: 1px solid var(--border-color); border-radius: 8px;">
                             </div>
                         </div>
 
                         <div style="margin-top: 1.5rem; display:flex; justify-content:flex-end; gap:0.5rem;">
-                            <button type="button" class="btn-secondary" onclick="billApp.closeModals()">Hủy</button>
-                            <button type="button" class="btn-primary" onclick="billApp.saveBill()"><i class='bx bx-check'></i> Lưu hóa đơn</button>
+                            <button type="button" class="btn-secondary" onclick="billApp.closeModals()" data-i18n="room.cancel">Hủy</button>
+                            <button type="button" class="btn-primary" onclick="billApp.printBill()" data-i18n="bill.print_btn">In hóa đơn</button>
+                            <button type="button" class="btn-primary" onclick="billApp.saveBill()"><i class='bx bx-check'></i> <span data-i18n="bill.save_btn">Lưu hóa đơn</span></button>
                         </div>
                     </div>
                 </div>
@@ -737,7 +1005,7 @@
     <div class="modal-overlay" id="billDetailModal">
         <div class="modal-card modal-lg">
             <div class="modal-header">
-                <h3>Chi tiết Hóa đơn</h3>
+                <h3 data-i18n="bill.detail_title">Chi tiết Hóa đơn</h3>
                 <button class="btn-close" onclick="billApp.closeModals()"><i class='bx bx-x'></i></button>
             </div>
             <div class="modal-body" style="background:#f3f4f6;">
@@ -745,8 +1013,11 @@
                     <!-- Will be cloned from the preview and injected here -->
                 </div>
                 <div style="margin-top: 1.5rem; display:flex; justify-content:center; gap:1rem;">
-                    <button class="btn-danger" onclick="billApp.deleteBill()"><i class='bx bx-trash'></i> Xóa hóa đơn</button>
-                    <button class="btn-primary" onclick="billApp.exportPDF()"><i class='bx bxs-file-pdf'></i> Xuất PDF</button>
+                    <button class="btn-secondary" onclick="billApp.editBill()"><i class='bx bx-edit-alt'></i> <span data-i18n="bill.edit_btn">Sửa hóa đơn</span></button>
+                    <button class="btn-primary btn-with-crown" onclick="billApp.exportPDF()" id="btnExportPDF" style="position:relative;">
+                        <i class='bx bxs-file-pdf'></i> <span data-i18n="bill.export_pdf_btn">Xuất PDF</span>
+                        <span class="btn-crown-badge" id="crownExportPDF" title="Tính năng Pro">👑</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -755,7 +1026,252 @@
     <!-- Toast Notification Container -->
     <div id="toastContainer" class="toast-container"></div>
 
+    <!-- Pro Crown Bubble -->
+    <button id="proBubble" onclick="app.openPlanModal()" title="Xem gói đăng ký">
+        👑
+    </button>
+
+    <!-- Plan Compare Modal -->
+    <div class="modal-overlay" id="planCompareModal">
+        <div class="modal-card" style="max-width:1040px;">
+            <div class="modal-header plan-modal-header">
+                <h2 data-i18n="pro.plan_modal_title">✨ Chọn gói phù hợp với bạn</h2>
+                <p style="margin: 0" data-i18n="pro.plan_modal_subtitle">Nâng cấp Pro để mở khóa toàn bộ tính năng và quản lý không giới hạn</p>
+                <button class="btn-close" onclick="app.closePlanModal()"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="modal-body plan-cards-row" style="padding-top: 2rem;">
+                <!-- Free Plan -->
+                <div class="plan-card">
+                    <div class="plan-icon free"><i class='bx bx-user'></i></div>
+                    <div class="plan-name">Free</div>
+                    <div class="plan-tagline">Khởi đầu miễn phí</div>
+                    <div class="plan-price">0đ</div>
+                    <div class="plan-period">Miễn phí mãi mãi</div>
+                    <button class="plan-btn free-btn" id="freePlanBtn" onclick="app.closePlanModal()">Đang sử dụng</button>
+                    <div class="plan-divider"></div>
+                    <div class="plan-features-label">Bao gồm:</div>
+                    <div class="plan-feature-item"><span class="fi yes">✓</span> Tối đa <strong>5 phòng</strong></div>
+                    <div class="plan-feature-item"><span class="fi yes">✓</span> Tối đa <strong>5 hóa đơn</strong></div>
+                    <div class="plan-feature-item"><span class="fi yes">✓</span> Quản lý hợp đồng cơ bản</div>
+                    <div class="plan-feature-item"><span class="fi no">✗</span> Xuất hóa đơn PDF</div>
+                    <div class="plan-feature-item"><span class="fi no">✗</span> Tùy chỉnh mức giá thanh toán</div>
+                    <div class="plan-feature-item"><span class="fi no">✗</span> Tùy chỉnh giao diện màu</div>
+                    <div class="plan-feature-item"><span class="fi no">✗</span> Upload ảnh / video phòng</div>
+                    <div class="plan-feature-item"><span class="fi no">✗</span> Tạo nhiều phòng cùng lúc</div>
+                </div>
+                <!-- Pro Plan 1 Month -->
+                <div class="plan-card featured">
+                    <div class="plan-icon pro" style="color:white;"><i class='bx bxs-crown'></i></div>
+                    <div class="plan-name">Pro (1 Tháng)</div>
+                    <div class="plan-tagline">Linh hoạt thanh toán</div>
+                    <div class="plan-price">99.000đ</div>
+                    <div class="plan-period">VND / tháng</div>
+                    <button class="plan-btn pro-btn" id="proPlanBtn" onclick="app.openQRModal('1_month', 99000)"><i class='bx bxs-crown'></i> Đăng ký 1 tháng</button>
+                    <div class="plan-divider"></div>
+                    <div class="plan-features-label">Tất cả Free và thêm:</div>
+                    <div class="plan-feature-item"><span class="fi yes">✓</span> <strong>Không giới hạn</strong> số phòng</div>
+                    <div class="plan-feature-item"><span class="fi yes">✓</span> <strong>Không giới hạn</strong> hóa đơn</div>
+                    <div class="plan-feature-item"><span class="fi yes">✓</span> Xuất hóa đơn ra <strong>PDF</strong></div>
+                    <div class="plan-feature-item"><span class="fi yes">✓</span> Tùy chỉnh mức giá thanh toán</div>
+                    <div class="plan-feature-item"><span class="fi yes">✓</span> Giao diện & màu gradient</div>
+                    <div class="plan-feature-item"><span class="fi yes">✓</span> Upload media không giới hạn</div>
+                    <div class="plan-feature-item"><span class="fi yes">✓</span> Tạo nhiều phòng cùng lúc</div>
+                </div>
+                <!-- Pro Plan 1 Year -->
+                <div class="plan-card featured" style="border-color: #10b981;">
+                    <div class="plan-icon pro" style="background: linear-gradient(135deg, #10b981, #059669); color:white;"><i class='bx bxs-crown'></i></div>
+                    <div class="plan-name">Pro (1 Năm)</div>
+                    <div class="plan-tagline">Tiết kiệm hơn 15%</div>
+                    <div class="plan-price">849.000đ</div>
+                    <div class="plan-period">VND / năm</div>
+                    <button class="plan-btn pro-btn" style="background: linear-gradient(135deg, #10b981, #059669);" onclick="app.openQRModal('1_year', 849000)"><i class='bx bxs-crown'></i> Đăng ký 1 năm</button>
+                    <div class="plan-divider"></div>
+                    <div class="plan-features-label">Tất cả Pro và thêm:</div>
+                    <div class="plan-feature-item"><span class="fi yes">✓</span> <strong>Tiết kiệm ~200k/năm</strong> so với mua lẻ</div>
+                    <div class="plan-feature-item"><span class="fi yes">✓</span> Huy hiệu Pro VIP năm</div>
+                    <div class="plan-feature-item"><span class="fi yes">✓</span> Ưu tiên hỗ trợ kỹ thuật 24/7</div>
+                </div>
+            </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Quản lý Gói đăng ký -->
+    <div class="modal-overlay" id="subscriptionManageModal" style="z-index: 10005;">
+        <div class="modal-card" style="max-width:520px;">
+            <div class="modal-header">
+                <h3 style="display:flex; align-items:center; gap:0.6rem;">
+                    <i class='bx bxs-crown' style="color:#f59e0b; font-size:1.4rem;"></i>
+                    Quản lý Gói Đăng ký
+                </h3>
+                <button class="btn-close" onclick="app.closeSubscriptionManageModal()"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="modal-body" style="display:flex; flex-direction:column; gap:1.25rem;">
+
+                <!-- Banner gói hiện tại -->
+                <div id="subInfoBanner" style="background: linear-gradient(135deg, rgba(245,158,11,0.12), rgba(236,72,153,0.08)); border:1px solid rgba(245,158,11,0.25); border-radius:14px; padding:1.5rem;">
+                    <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1rem;">
+                        <div style="width:50px; height:50px; border-radius:12px; background:linear-gradient(135deg,#f59e0b,#ec4899); display:flex; align-items:center; justify-content:center; color:white; font-size:1.5rem; flex-shrink:0;">
+                            <i class='bx bxs-crown'></i>
+                        </div>
+                        <div>
+                            <div style="font-size:0.78rem; color:var(--text-muted); font-weight:500; text-transform:uppercase; letter-spacing:0.05em;">Gói hiện tại</div>
+                            <div id="subPlanName" style="font-size:1.15rem; font-weight:700; background:linear-gradient(135deg,#f59e0b,#ec4899); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">Gói Tháng (99,000 VNĐ)</div>
+                        </div>
+                        <div id="subAutoRenewStatus" style="margin-left:auto; padding:0.3rem 0.75rem; border-radius:99px; font-size:0.78rem; font-weight:600; background:rgba(16,185,129,0.12); color:#10b981;">Tự động gia hạn</div>
+                    </div>
+
+                    <!-- Thông tin hết hạn + countdown -->
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                        <div style="background:rgba(0,0,0,0.04); border-radius:10px; padding:0.875rem; text-align:center;">
+                            <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.25rem;">Đến ngày</div>
+                            <div id="subExpiresAt" style="font-weight:700; color:var(--text-main); font-size:1rem;">-</div>
+                        </div>
+                        <div style="background:rgba(0,0,0,0.04); border-radius:10px; padding:0.875rem; text-align:center;">
+                            <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.25rem;">Còn lại</div>
+                            <div id="subDaysLeft" style="font-weight:700; font-size:1rem; color:var(--primary-color);">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tùy chọn quản lý -->
+                <div style="display:flex; flex-direction:column; gap:0.6rem;">
+                    <div style="font-size:0.8rem; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:0.25rem;">Tùy chọn</div>
+
+                    <!-- Nâng lên gói năm (chỉ khi đang dùng gói tháng) -->
+                    <button class="btn-primary" id="btnSwitchToYearly" style="width:100%; display:none; justify-content:center; align-items:center; gap:0.5rem; background:linear-gradient(135deg,#10b981,#059669); border:none;" onclick="app.switchToYearlyPlan()">
+                        <i class='bx bx-up-arrow-circle'></i> Nâng lên Gói Năm &mdash; Chỉ 849,000 VNĐ (Tiết kiệm ~30%)
+                    </button>
+
+                    <!-- Bật/Tắt tự động gia hạn -->
+                    <button class="btn-secondary" id="btnToggleAutoRenew" style="width:100%; display:flex; justify-content:center; align-items:center; gap:0.5rem;" onclick="app.toggleAutoRenew()">
+                        <i class='bx bx-refresh'></i> Tắt tự động gia hạn
+                    </button>
+
+                    <!-- Hủy đăng ký -->
+                    <button class="btn-secondary" id="btnCancelSub" style="width:100%; border-color:#ef4444; color:#ef4444; display:flex; justify-content:center; align-items:center; gap:0.5rem;" onclick="app.cancelSubscription()">
+                        <i class='bx bx-x-circle'></i> Hủy đăng ký (Vẫn dùng được đến hết hạn)
+                    </button>
+                </div>
+
+                <div style="font-size:0.78rem; color:var(--text-muted); background:var(--bg-color); border-radius:8px; padding:0.875rem; line-height:1.55;">
+                    <i class='bx bx-info-circle' style="vertical-align:middle; margin-right:4px;"></i>
+                    Khi hết hạn mà không gia hạn, tài khoản sẽ tự về bản Free. Dữ liệu vượt quá giới hạn 5 phòng/5 hóa đơn sẽ tạm thời bị khóa cho đến khi gia hạn.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR Code Payment Modal -->
+    <div class="modal-overlay" id="qrPaymentModal" style="z-index: 10005;">
+        <div class="modal-card" style="max-width:400px; text-align:center;">
+            <div class="modal-header">
+                <h3>Thanh toán Nâng cấp Pro</h3>
+                <button class="btn-close" onclick="document.getElementById('qrPaymentModal').classList.remove('active')"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="modal-body" style="display:flex; flex-direction:column; align-items:center; gap:1rem;">
+                <p style="color:var(--text-muted); font-size:0.9rem;">Quét mã QR dưới đây để thanh toán. Chúng tôi sẽ duyệt yêu cầu ngay sau khi nhận được tiền.</p>
+                <div style="background:#fff; padding:1rem; border-radius:12px; border:1px solid var(--border-color); text-align:center;">
+                    <img src="/assets/qr%20code.jpg" alt="QR Code" style="width:200px; height:200px; object-fit:contain; border-radius:8px;">
+                    <div style="margin-top:0.75rem; font-size:0.8rem; color:#475569; font-weight:500;">
+                        🔒 Thanh toán an toàn qua chuyển khoản · Phê duyệt nhanh chóng
+                    </div>
+                </div>
+                <div style="background:var(--bg-color); padding:1rem; border-radius:8px; width:100%; text-align:left; font-size:0.85rem;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
+                        <span style="color:var(--text-muted);">Số tiền:</span>
+                        <strong id="qrAmountDisplay" style="color:var(--primary-color); font-size:1rem;">99.000 VNĐ</strong>
+                    </div>
+                    <div style="display:flex; justify-content:space-between;">
+                        <span style="color:var(--text-muted);">Nội dung CK:</span>
+                        <strong id="qrContentDisplay">PRO user123</strong>
+                    </div>
+                </div>
+                <button class="btn-primary" style="width:100%; margin-top:0.5rem;" onclick="app.sendProRequest()">
+                    <i class='bx bx-check-circle'></i> Đã chuyển khoản, Gửi Yêu cầu
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Notification Pop-up Modal -->
+    <div class="modal-overlay" id="adminNotificationModal" style="z-index: 100000;">
+        <div class="modal-card" style="max-width:450px; text-align:center; border: 2px solid var(--primary-color); box-shadow: 0 10px 25px rgba(var(--primary-rgb), 0.2);">
+            <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem; display:flex; justify-content:center; position:relative;">
+                <h3 style="color:var(--primary-color); display:flex; align-items:center; gap:0.5rem; font-size:1.2rem; font-weight:700;">
+                    📢 Thông báo từ Admin
+                </h3>
+                <button class="btn-close" onclick="app.closeAdminNotificationModal()" style="position:absolute; right:1rem; top: 50%; transform: translateY(-50%);"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem 1rem; display:flex; flex-direction:column; gap:1.25rem; align-items:center;">
+                <div class="bell-glow-icon" style="width: 56px; height: 56px; border-radius: 50%; background: rgba(var(--primary-rgb), 0.1); display:flex; align-items:center; justify-content:center; color:var(--primary-color); font-size:2rem;">
+                    <i class='bx bxs-bell-ring'></i>
+                </div>
+                <p id="adminNotificationMessage" style="font-size:1rem; color:var(--text-main); line-height:1.6; font-weight:500; white-space:pre-wrap; word-break:break-word; text-align:center; max-height:250px; overflow-y:auto; width: 100%;">
+                    Nội dung thông báo ở đây.
+                </p>
+                <button class="btn-primary" style="width:100%;" onclick="app.closeAdminNotificationModal()">
+                    Đồng ý
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Modal Chi tiết Hợp đồng -->
+    <div class="modal-overlay" id="contractDetailModal" style="z-index: 1050;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 data-i18n="contract.history_detail_title">Chi tiết Hợp đồng Lịch sử</h3>
+                <button class="modal-close" onclick="document.getElementById('contractDetailModal').classList.remove('active')"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="modal-body" id="contractDetailBody" style="line-height: 1.6;">
+                <!-- Content -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Yêu cầu cập nhật hồ sơ -->
+    <div class="modal-overlay" id="updateProfilePromptModal" style="z-index: 1050; align-items: center; justify-content: center;">
+        <div class="modal-card" style="width: 400px; max-width: 90%; max-height: 90vh;">
+            <div class="modal-header">
+                <h3 data-i18n="notify.title">Thông báo</h3>
+                <i class='bx bx-x' onclick="app.closeUpdateProfilePromptModal()"></i>
+            </div>
+            <div class="modal-body" style="text-align: center; padding: 2rem 1.5rem;">
+                <div style="font-size: 3rem; color: var(--primary-color); margin-bottom: 1rem;">
+                    <i class='bx bx-user-circle'></i>
+                </div>
+                <h4 style="margin-bottom: 0.5rem; color: var(--text-color);" data-i18n="notify.profile_heading">Cập nhật hồ sơ cá nhân</h4>
+                <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.5rem;" data-i18n="notify.profile_desc">Bạn chưa cập nhật thông tin hiển thị. Vui lòng cập nhật để trải nghiệm tốt nhất.</p>
+                <button class="btn-primary" style="width: 100%; padding: 0.75rem;" onclick="app.closeUpdateProfilePromptModal(); app.openProfileModal();" data-i18n="notify.update_btn">Cập nhật ngay</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Confirm Dialog -->
+    <div class="modal-overlay" id="confirmModal" style="z-index: 2000;">
+        <div class="modal-card" style="max-width: 420px; width: 90%;">
+            <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding: 1.25rem 1.5rem;">
+                <h3 id="confirmModalTitle" style="font-size: 1.1rem; margin: 0;"></h3>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem;">
+                <div style="display:flex; gap: 1rem; align-items: flex-start;">
+                    <div id="confirmModalIcon" style="font-size: 2rem; flex-shrink: 0; margin-top: 2px;">
+                        <i class='bx bx-error-circle' style="color: var(--danger);"></i>
+                    </div>
+                    <p id="confirmModalMessage" style="margin: 0; color: var(--text-color); line-height: 1.6; font-size: 0.95rem;"></p>
+                </div>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:0.75rem; padding: 1rem 1.5rem; border-top: 1px solid var(--border-color);">
+                <button id="confirmModalCancel" class="btn-secondary" style="padding: 0.6rem 1.25rem; border-radius: 8px; cursor: pointer; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-color); font-size: 0.9rem;"></button>
+                <button id="confirmModalConfirm" style="padding: 0.6rem 1.25rem; border-radius: 8px; cursor: pointer; border: none; background: var(--danger, #ef4444); color: #fff; font-size: 0.9rem; font-weight: 600;"></button>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- html2pdf for PDF export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="js/i18n.js"></script>

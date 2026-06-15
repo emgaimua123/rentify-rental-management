@@ -11,6 +11,19 @@ const app = {
     captchaCode: '',
 
     async init() {
+        // Tự động tước quyền Pro một lần cho tất cả tài khoản để test (theo yêu cầu: xóa trạng thái pro ở các tài khoản khác ngoài admin)
+        try {
+            if (localStorage.getItem('rentify_global_pro_reset_v1') !== 'true') {
+                localStorage.removeItem('rentify_pro');
+                localStorage.setItem('rentify_subscriptions', '[]');
+                localStorage.setItem('rentify_pro_requests', '[]');
+                localStorage.setItem('rentify_global_pro_reset_v1', 'true');
+                console.log('Global Pro reset executed.');
+            }
+        } catch (e) {
+            console.error('Test reset error:', e);
+        }
+
         if (!localStorage.getItem('rentify_token')) {
             document.getElementById('landingPage').style.display = 'flex';
             document.getElementById('appContainer').style.display = 'none';
@@ -20,42 +33,87 @@ const app = {
         document.getElementById('landingPage').style.display = 'none';
         document.getElementById('appContainer').style.display = 'flex';
         
-        // Theme init
+        // Theme init (color + dark mode)
         const savedTheme = localStorage.getItem('rentify_theme') || 'light';
         if (savedTheme === 'dark') {
             document.documentElement.setAttribute('data-theme', 'dark');
+            const toggle = document.getElementById('darkModeToggle');
+            if (toggle) toggle.checked = true;
         }
-        document.getElementById('themeToggleBtn').addEventListener('click', () => {
-            const currentTheme = document.documentElement.getAttribute('data-theme');
-            if (currentTheme === 'dark') {
-                document.documentElement.removeAttribute('data-theme');
-                localStorage.setItem('rentify_theme', 'light');
-            } else {
-                document.documentElement.setAttribute('data-theme', 'dark');
-                localStorage.setItem('rentify_theme', 'dark');
+
+        // Color theme init
+        const savedColor = localStorage.getItem('rentify_color') || 'indigo';
+        const savedColorName = localStorage.getItem('rentify_color_name') || 'Indigo';
+        this.applyColor(savedColor, savedColorName);
+
+        // Sync Pro status for the current user (prevents Pro leak between accounts)
+        try {
+            const uStr = localStorage.getItem('rentify_user');
+            if (uStr) {
+                const u = JSON.parse(uStr);
+                if (u.role !== 'ADMIN') this.syncProStatus(u.id);
             }
-        });
+        } catch(e) {}
+
+        // Update Pro UI state on load
+        this.updateProUI();
 
         // Language init
         window.addEventListener('languageChanged', () => {
             this.renderRooms();
             this.updateGreeting();
+            this.updateLangFlags();
+            this.updateProUI();
+            this.renderCharts();
         });
         
         // initialize i18n
         if (window.i18n) {
             window.i18n.init();
         }
+        this.updateLangFlags();
         
-        // Cập nhật thông tin User trên Topbar
+        // Cập nhật thông tin User trên Topbar & DB
         try {
+            const token = localStorage.getItem('rentify_token');
+            if (token) {
+                const res = await fetch('/api/auth/me', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.success) {
+                        localStorage.setItem('rentify_user', JSON.stringify(data.data));
+                    }
+                }
+            }
+            
             const userStr = localStorage.getItem('rentify_user');
             if (userStr) {
                 const u = JSON.parse(userStr);
-                if (u.avatar) document.getElementById('topbarAvatar').src = u.avatar;
-                if (u.name) document.getElementById('topbarName').textContent = u.name;
+                if (u.avatar) {
+                    document.getElementById('topbarAvatar').src = u.avatar;
+                    document.getElementById('avatarDropMenuImg').src = u.avatar;
+                }
+                if (u.name) document.getElementById('avatarDropName').textContent = u.name;
+                if (u.username) document.getElementById('avatarDropUsername').textContent = '@' + u.username;
+
+                if (!u.name || !u.avatar || u.name === u.username) {
+                    setTimeout(() => {
+                        this.openUpdateProfilePromptModal();
+                    }, 1000);
+                }
             }
+            this.updateAuthUI();
         } catch(e) {}
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            const wrap = document.getElementById('avatarDropdownWrap');
+            if (wrap && !wrap.contains(e.target)) {
+                document.getElementById('avatarDropdown')?.classList.remove('open');
+            }
+        });
 
         this.updateGreeting();
         await this.loadRooms();
@@ -75,54 +133,616 @@ const app = {
         menuItems.forEach(item => {
             item.addEventListener('click', (e) => {
                 e.preventDefault();
-                // Remove active class
-                menuItems.forEach(i => i.classList.remove('active'));
-                // Add active class
-                item.classList.add('active');
-                
-                // Hide all sections
-                document.querySelectorAll('.app-section').forEach(sec => sec.style.display = 'none');
-                
-                // Show target section
                 const targetId = item.getAttribute('data-section');
-                const targetSection = document.getElementById(targetId);
-                if (targetSection) {
-                    targetSection.style.display = 'block';
-                }
+                this.switchSection(targetId);
             });
         });
+
+        // Initialize topbar search for current section
+        this.updateTopbarSearch('appSectionRoomList');
 
         // Event listeners for multi-room preview
         ['multiPrefix', 'letterFrom', 'letterTo', 'numberFrom', 'numberTo'].forEach(id => {
             const el = document.getElementById(id);
             if(el) el.addEventListener('input', () => this.updateMultiRoomPreview());
         });
+        
+        // Render charts after init
+        this.renderCharts();
+    },
+
+    switchSection(sectionId) {
+        // Remove active class from all sidebar menu items
+        const menuItems = document.querySelectorAll('#sidebarMenu a[data-section]');
+        menuItems.forEach(i => {
+            if (i.getAttribute('data-section') === sectionId) {
+                i.classList.add('active');
+            } else {
+                i.classList.remove('active');
+            }
+        });
+        
+        // Hide all sections
+        document.querySelectorAll('.app-section').forEach(sec => sec.style.display = 'none');
+        
+        // Show target section
+        const targetSection = document.getElementById(sectionId);
+        if (targetSection) {
+            targetSection.style.display = 'block';
+        }
+        
+        // Update topbar search bar
+        this.updateTopbarSearch(sectionId);
+        
+        // If switching to admin section, initialize the tab
+        if (sectionId === 'appSectionAdmin') {
+            this.switchAdminTab('users');
+        }
+        
+        // Render charts if overview
+        if (sectionId === 'appSectionOverview') {
+            this.renderCharts();
+        }
+    },
+
+    isPro() {
+        try {
+            const uStr = localStorage.getItem('rentify_user');
+            if (uStr) {
+                const u = JSON.parse(uStr);
+                if (u.role === 'ADMIN') return true;
+            }
+        } catch(e) {}
+        return localStorage.getItem('rentify_pro') === 'true';
+    },
+
+    syncProStatus(userId) {
+        try {
+            const subs = JSON.parse(localStorage.getItem('rentify_subscriptions') || '[]');
+            const userSub = subs.find(s => s.userId === userId && s.status === 'active');
+            const isActive = userSub && new Date(userSub.expiresAt) > new Date();
+            if (isActive) {
+                localStorage.setItem('rentify_pro', 'true');
+            } else {
+                localStorage.removeItem('rentify_pro');
+            }
+        } catch(e) {
+            localStorage.removeItem('rentify_pro');
+        }
+    },
+
+    isTestUser() {
+        try {
+            const uStr = localStorage.getItem('rentify_user');
+            if (uStr) {
+                const u = JSON.parse(uStr);
+                if (u.role !== 'ADMIN') return true;
+            }
+        } catch(e) {}
+        return false;
+    },
+
+    updateProUI() {
+        const pro = this.isPro();
+        // Bubble
+        const bubble = document.getElementById('proBubble');
+        if (bubble) {
+            if (pro) {
+                bubble.style.display = 'none';
+            } else {
+                bubble.style.display = 'flex';
+                bubble.classList.remove('is-pro');
+                bubble.textContent = '👑';
+                bubble.title = window.i18n ? window.i18n.t('pro.bubble_title') : 'Nâng cấp Pro';
+            }
+        }
+        // Avatar dropdown Pro badge
+        const proBadge = document.getElementById('avatarProBadge');
+        const subLabel = document.getElementById('subscriptionMenuLabel');
+        const subBadge = document.getElementById('subscriptionMenuBadge');
+        if (proBadge) proBadge.style.display = pro ? 'block' : 'none';
+        if (subLabel) subLabel.textContent = window.i18n ? window.i18n.t(pro ? 'pro.manage_label' : 'pro.upgrade_label') : (pro ? 'Quản lý gói Pro' : 'Nâng cấp Pro');
+        if (subBadge) subBadge.style.display = pro ? 'inline-flex' : 'none';
+
+        // Update dropdown menu item action based on pro status
+        const subMenuItem = document.getElementById('subscriptionMenuItem');
+        if (subMenuItem) {
+            if (pro) {
+                subMenuItem.onclick = () => {
+                    document.getElementById('avatarDropdown').classList.remove('open');
+                    this.openSubscriptionManageModal();
+                };
+                subMenuItem.style.color = '#f59e0b';
+            } else {
+                subMenuItem.onclick = () => {
+                    document.getElementById('avatarDropdown').classList.remove('open');
+                    this.openPlanModal();
+                };
+                subMenuItem.style.color = '';
+            }
+        }
+
+        // Crown icons (hide when Pro)
+        const crowns = ['crownBulkCreate','crownPresetPrice','crownExportPDF','crownMediaUpload'];
+        crowns.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = pro ? 'none' : '';
+        });
+
+        // Media upload lock
+        const mediaInput = document.getElementById('roomImages');
+        const mediaLocked = document.getElementById('mediaUploadLocked');
+        if (mediaInput && mediaLocked) {
+            mediaInput.style.display = pro ? 'block' : 'none';
+            mediaLocked.style.display = pro ? 'none' : 'block';
+        }
+
+        // Plan modal buttons
+        const freePlanBtn = document.getElementById('freePlanBtn');
+        const proPlanBtn = document.getElementById('proPlanBtn');
+        if (freePlanBtn && proPlanBtn) {
+            const t = (key, fallback) => window.i18n ? window.i18n.t(key) : fallback;
+            if (pro) {
+                freePlanBtn.textContent = t('pro.free_plan_old', 'Gói cũ của bạn');
+                freePlanBtn.className = 'plan-btn free-btn';
+                proPlanBtn.textContent = t('pro.plan_btn_active', '✓ Đang dùng Pro');
+                proPlanBtn.className = 'plan-btn current-btn';
+                proPlanBtn.onclick = null;
+            } else {
+                freePlanBtn.textContent = t('pro.free_plan_current', 'Gói hiện tại');
+                freePlanBtn.className = 'plan-btn current-btn';
+                proPlanBtn.textContent = t('pro.plan_btn_upgrade', '👑 Nâng cấp Pro ngay');
+                proPlanBtn.className = 'plan-btn pro-btn';
+                proPlanBtn.onclick = () => this.openQRModal('1_month', 99000);
+            }
+        }
+
+        // Gradient locks
+        const gradLocks = ['lockSunset','lockOcean','lockAurora','lockCandy','lockForest','lockMidnight','lockFlame','lockNebula','lockSakura','lockCyber','lockSolar'];
+        gradLocks.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = pro ? 'none' : 'flex';
+        });
+        const gradNote = document.getElementById('gradientProNote');
+        if (gradNote) gradNote.style.display = pro ? 'none' : 'inline-flex';
+    },
+
+    openPlanModal() {
+        document.getElementById('avatarDropdown')?.classList.remove('open');
+        this.updateProUI();
+        if (this.isPro()) {
+            const userStr = localStorage.getItem('rentify_user');
+            const user = userStr ? JSON.parse(userStr) : null;
+            if (user && user.role === 'ADMIN') {
+                this.showToast('Bạn là Admin, sở hữu tài khoản Pro vĩnh viễn!', 'info');
+                return;
+            }
+            this.openSubscriptionManageModal();
+        } else {
+            document.getElementById('planCompareModal').classList.add('active');
+        }
+    },
+
+    closePlanModal() {
+        document.getElementById('planCompareModal').classList.remove('active');
+    },
+
+    openUpdateProfilePromptModal() {
+        const modal = document.getElementById('updateProfilePromptModal');
+        if (modal) {
+            modal.style.display = 'flex';
+            modal.classList.add('active');
+        }
+    },
+
+    closeUpdateProfilePromptModal() {
+        const modal = document.getElementById('updateProfilePromptModal');
+        if (modal) {
+            modal.classList.remove('active');
+            setTimeout(() => { modal.style.display = ''; }, 300);
+        }
+    },
+
+    activatePro() {
+        localStorage.setItem('rentify_pro', 'true');
+        
+        // Initialize mock subscription for direct activation
+        const userStr = localStorage.getItem('rentify_user');
+        if (userStr) {
+            const user = JSON.parse(userStr);
+            const expiresAt = new Date();
+            expiresAt.setDate(expiresAt.getDate() + 30);
+            
+            const subData = {
+                userId: user.id,
+                plan: '1_month',
+                expiresAt: expiresAt.toISOString(),
+                autoRenew: true,
+                status: 'active'
+            };
+            
+            let subs = JSON.parse(localStorage.getItem('rentify_subscriptions') || '[]');
+            subs = subs.filter(s => s.userId !== user.id);
+            subs.push(subData);
+            localStorage.setItem('rentify_subscriptions', JSON.stringify(subs));
+        }
+
+        this.updateProUI();
+        this.closePlanModal();
+        this.showToast('🎉 Chúc mừng! Bạn đã nâng cấp lên Pro thành công!', 'success');
+    },
+
+    openSubscriptionManageModal() {
+        const userStr = localStorage.getItem('rentify_user');
+        if (!userStr) return;
+        const user = JSON.parse(userStr);
+        
+        let subs = JSON.parse(localStorage.getItem('rentify_subscriptions') || '[]');
+        let sub = subs.find(s => s.userId === user.id);
+        
+        // If no sub found for this pro user, create a default monthly one starting now
+        if (!sub) {
+            const expires = new Date();
+            expires.setDate(expires.getDate() + 30);
+            sub = {
+                userId: user.id,
+                plan: '1_month',
+                expiresAt: expires.toISOString(),
+                autoRenew: true,
+                status: 'active'
+            };
+            subs.push(sub);
+            localStorage.setItem('rentify_subscriptions', JSON.stringify(subs));
+        }
+        
+        // Render subscription details
+        const subPlanName = document.getElementById('subPlanName');
+        const subExpiresAt = document.getElementById('subExpiresAt');
+        const subAutoRenewStatus = document.getElementById('subAutoRenewStatus');
+        const btnSwitchToYearly = document.getElementById('btnSwitchToYearly');
+        const btnToggleAutoRenew = document.getElementById('btnToggleAutoRenew');
+        const btnCancelSub = document.getElementById('btnCancelSub');
+        
+        if (subPlanName) {
+            subPlanName.textContent = sub.plan === '1_year' ? 'Gói Năm (849,000 VNĐ)' : 'Gói Tháng (99,000 VNĐ)';
+            subPlanName.style.background = sub.plan === '1_year' 
+                ? 'linear-gradient(135deg, #10b981, #059669)' 
+                : 'var(--theme-gradient)';
+            subPlanName.style.webkitBackgroundClip = 'text';
+            subPlanName.style.webkitTextFillColor = 'transparent';
+            subPlanName.style.backgroundClip = 'text';
+        }
+        
+        if (subExpiresAt) {
+            const date = new Date(sub.expiresAt);
+            subExpiresAt.textContent = date.toLocaleDateString('vi-VN', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
+
+        // Days left countdown
+        const subDaysLeft = document.getElementById('subDaysLeft');
+        if (subDaysLeft) {
+            const now = new Date();
+            const exp = new Date(sub.expiresAt);
+            const diffMs = exp - now;
+            const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+            if (diffDays > 0) {
+                subDaysLeft.textContent = diffDays + ' ngày';
+                subDaysLeft.style.color = diffDays <= 7 ? '#ef4444' : diffDays <= 14 ? '#f59e0b' : 'var(--primary-color)';
+            } else {
+                subDaysLeft.textContent = 'Đã hết hạn';
+                subDaysLeft.style.color = '#ef4444';
+            }
+        }
+        
+        if (subAutoRenewStatus) {
+            if (sub.status === 'cancelled') {
+                subAutoRenewStatus.textContent = 'Sắp hết hạn (Đã hủy)';
+                subAutoRenewStatus.style.background = 'rgba(239, 68, 68, 0.12)';
+                subAutoRenewStatus.style.color = '#ef4444';
+            } else if (sub.autoRenew) {
+                subAutoRenewStatus.textContent = 'Tự động gia hạn';
+                subAutoRenewStatus.style.background = 'rgba(16, 185, 129, 0.12)';
+                subAutoRenewStatus.style.color = '#10b981';
+            } else {
+                subAutoRenewStatus.textContent = 'Không gia hạn';
+                subAutoRenewStatus.style.background = 'rgba(245, 158, 11, 0.12)';
+                subAutoRenewStatus.style.color = '#f59e0b';
+            }
+        }
+        
+        if (btnSwitchToYearly) {
+            btnSwitchToYearly.style.display = (sub.plan === '1_month' && sub.status !== 'cancelled') ? 'flex' : 'none';
+        }
+        
+        if (btnToggleAutoRenew) {
+            btnToggleAutoRenew.style.display = sub.status !== 'cancelled' ? 'flex' : 'none';
+            btnToggleAutoRenew.innerHTML = sub.autoRenew 
+                ? `<i class='bx bx-refresh'></i> Tắt tự động gia hạn`
+                : `<i class='bx bx-refresh'></i> Bật tự động gia hạn`;
+        }
+        
+        if (btnCancelSub) {
+            btnCancelSub.style.display = sub.status !== 'cancelled' ? 'flex' : 'none';
+        }
+        
+        document.getElementById('subscriptionManageModal').classList.add('active');
+    },
+
+    closeSubscriptionManageModal() {
+        document.getElementById('subscriptionManageModal').classList.remove('active');
+    },
+
+    switchToYearlyPlan() {
+        const userStr = localStorage.getItem('rentify_user');
+        if (!userStr) return;
+        // Close subscription modal first
+        this.closeSubscriptionManageModal();
+        // Open QR payment modal with yearly plan
+        this.currentProPlan = 'upgrade_to_yearly';
+        document.getElementById('qrAmountDisplay').textContent = '849,000 VNĐ';
+        const user = JSON.parse(userStr);
+        document.getElementById('qrContentDisplay').textContent = 'UPGRADE YEARLY ' + (user ? user.username : 'khach');
+        document.getElementById('qrPaymentModal').classList.add('active');
+    },
+
+    toggleAutoRenew() {
+        const userStr = localStorage.getItem('rentify_user');
+        if (!userStr) return;
+        const user = JSON.parse(userStr);
+        
+        let subs = JSON.parse(localStorage.getItem('rentify_subscriptions') || '[]');
+        const idx = subs.findIndex(s => s.userId === user.id);
+        if (idx !== -1) {
+            subs[idx].autoRenew = !subs[idx].autoRenew;
+            localStorage.setItem('rentify_subscriptions', JSON.stringify(subs));
+            
+            const msg = subs[idx].autoRenew ? 'Đã bật tự động gia hạn!' : 'Đã tắt tự động gia hạn!';
+            this.showToast(msg, 'success');
+            this.openSubscriptionManageModal(); // Refresh UI
+        }
+    },
+
+    cancelSubscription() {
+        if (!confirm('Bạn có chắc chắn muốn hủy gia hạn gói đăng ký Pro không? Bạn vẫn có thể sử dụng các tính năng Pro cho tới khi hết hạn.')) {
+            return;
+        }
+        
+        const userStr = localStorage.getItem('rentify_user');
+        if (!userStr) return;
+        const user = JSON.parse(userStr);
+        
+        let subs = JSON.parse(localStorage.getItem('rentify_subscriptions') || '[]');
+        const idx = subs.findIndex(s => s.userId === user.id);
+        if (idx !== -1) {
+            subs[idx].status = 'cancelled';
+            subs[idx].autoRenew = false;
+            localStorage.setItem('rentify_subscriptions', JSON.stringify(subs));
+            
+            this.showToast('Đã hủy đăng ký thành công!', 'success');
+            this.openSubscriptionManageModal(); // Refresh UI
+        }
+    },
+
+    openQRModal(plan, amount) {
+        this.currentProPlan = plan;
+        document.getElementById('qrAmountDisplay').textContent = new Intl.NumberFormat('vi-VN').format(amount) + ' VNĐ';
+        
+        const userStr = localStorage.getItem('rentify_user');
+        const user = userStr ? JSON.parse(userStr) : null;
+        document.getElementById('qrContentDisplay').textContent = 'PRO ' + (user ? user.username : 'khach');
+        
+        document.getElementById('qrPaymentModal').classList.add('active');
+    },
+
+    sendProRequest() {
+        const userStr = localStorage.getItem('rentify_user');
+        if (!userStr) {
+            this.showToast('Vui lòng đăng nhập trước!', 'error');
+            return;
+        }
+        const user = JSON.parse(userStr);
+        const plan = this.currentProPlan;
+        
+        // Check for duplicate pending request
+        const requests = JSON.parse(localStorage.getItem('rentify_pro_requests') || '[]');
+        const hasPending = requests.some(r => r.userId === user.id && r.status === 'PENDING' && r.plan === plan);
+        if (hasPending) {
+            this.showToast('Bạn đã có yêu cầu tương tự đang chờ duyệt!', 'error');
+            document.getElementById('qrPaymentModal').classList.remove('active');
+            return;
+        }
+        
+        requests.push({
+            id: Date.now(),
+            userId: user.id,
+            username: user.username,
+            plan: plan,
+            type: plan === 'upgrade_to_yearly' ? 'upgrade_to_yearly' : 'new_subscription',
+            status: 'PENDING',
+            date: new Date().toISOString()
+        });
+        localStorage.setItem('rentify_pro_requests', JSON.stringify(requests));
+        
+        document.getElementById('qrPaymentModal').classList.remove('active');
+        this.closePlanModal();
+        this.closeSubscriptionManageModal();
+        this.showToast('Đã gửi yêu cầu! Admin sẽ duyệt sớm nhất.', 'success');
+    },
+
+
+    checkRoomLimit() {
+        if (this.isPro()) return true;
+        const count = this.rooms ? this.rooms.length : 0;
+        if (count >= 5) {
+            this.openPlanModal();
+            this.showToast('Bản Free tối đa 5 phòng. Nâng cấp Pro để không giới hạn!', 'error');
+            return false;
+        }
+        return true;
+    },
+
+    checkBilllimit() {
+        if (this.isPro()) return true;
+        const bills = JSON.parse(localStorage.getItem((window.app && !window.app.isPro() && window.app.isTestUser() ? 'rentify_bills_temp' : 'rentify_bills')) || '[]');
+        if (bills.length >= 5) {
+            this.openPlanModal();
+            this.showToast('Bản Free tối đa 5 hóa đơn. Nâng cấp Pro để không giới hạn!', 'error');
+            return false;
+        }
+        return true;
+    },
+
+    // ===== THEME COLOR =====
+    applyColor(color, name) {
+        if (color === 'indigo') {
+            document.documentElement.removeAttribute('data-color');
+        } else {
+            document.documentElement.setAttribute('data-color', color);
+        }
+        const nameEl = document.getElementById('currentThemeName');
+        if (nameEl) nameEl.textContent = name;
+        // Update active swatch
+        document.querySelectorAll('.theme-swatch').forEach(s => {
+            s.classList.toggle('active', s.getAttribute('data-color') === color);
+        });
+    },
+
+    setThemeColor(color, name, isGradient = false) {
+        if (isGradient && !this.isPro()) {
+            this.openPlanModal();
+            this.showToast('Gradient theme chỉ dành cho Pro!', 'error');
+            return;
+        }
+        localStorage.setItem('rentify_color', color);
+        localStorage.setItem('rentify_color_name', name);
+        this.applyColor(color, name);
+    },
+
+    toggleDarkMode(isDark) {
+        if (isDark) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            localStorage.setItem('rentify_theme', 'dark');
+        } else {
+            document.documentElement.removeAttribute('data-theme');
+            localStorage.setItem('rentify_theme', 'light');
+        }
+    },
+
+    toggleThemePanel() {
+        const panel = document.getElementById('themePanel');
+        const chevron = document.getElementById('themePanelChevron');
+        if (!panel) return;
+        panel.classList.toggle('open');
+        if (chevron) chevron.style.transform = panel.classList.contains('open') ? 'rotate(180deg)' : '';
+    },
+
+    // ===== LANGUAGE FLAGS =====
+    updateLangFlags() {
+        const lang = (window.i18n && window.i18n.currentLang) || localStorage.getItem('rentify_lang') || 'vi';
+        const viBtn = document.getElementById('langViBtnDrop');
+        const enBtn = document.getElementById('langEnBtnDrop');
+        if (viBtn) viBtn.classList.toggle('inactive', lang !== 'vi');
+        if (enBtn) enBtn.classList.toggle('inactive', lang !== 'en');
+        // Landing flags
+        const viLanding = document.getElementById('langViBtnLanding');
+        const enLanding = document.getElementById('langEnBtnLanding');
+        if (viLanding) viLanding.style.opacity = lang === 'vi' ? '1' : '0.4';
+        if (enLanding) enLanding.style.opacity = lang === 'en' ? '1' : '0.4';
+    },
+
+    updateTopbarSearch(sectionId) {
+        const bar = document.getElementById('topbarSearchBar');
+        const input = document.getElementById('topbarSearchInput');
+        if (!bar || !input) return;
+        
+        // Always flex so layout holds
+        bar.style.display = 'flex';
+        
+        if (sectionId === 'appSectionRoomList') {
+            bar.style.visibility = 'visible';
+            input.placeholder = window.i18n ? window.i18n.t('topbar.search_rooms') : 'Tìm theo tên phòng...';
+            input.value = '';
+            this._topbarSearchSection = 'rooms';
+        } else if (sectionId === 'appSectionBill') {
+            bar.style.visibility = 'visible';
+            input.placeholder = window.i18n ? window.i18n.t('topbar.search_bills') : 'Tìm theo tên phòng/hóa đơn...';
+            input.value = '';
+            this._topbarSearchSection = 'bills';
+        } else {
+            bar.style.visibility = 'hidden';
+            input.value = '';
+            this._topbarSearchSection = null;
+        }
+    },
+
+    handleTopbarSearch(value) {
+        if (this._topbarSearchSection === 'rooms') {
+            this.filterRooms(value);
+        } else if (this._topbarSearchSection === 'bills') {
+            if (window.billApp) billApp.filterBills(value);
+        }
+    },
+
+    highlightRoom(roomId) {
+        setTimeout(() => {
+            const cards = document.querySelectorAll('.room-card');
+            cards.forEach(card => {
+                if (card.getAttribute('data-id') === String(roomId)) {
+                    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    card.classList.add('highlight-flash');
+                    setTimeout(() => card.classList.remove('highlight-flash'), 2000);
+                }
+            });
+        }, 400);
+    },
+
+    highlightBill(billId) {
+        setTimeout(() => {
+            const cards = document.querySelectorAll('.bill-card');
+            cards.forEach(card => {
+                if (card.getAttribute('data-bill-id') === String(billId)) {
+                    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    card.classList.add('highlight-flash');
+                    setTimeout(() => card.classList.remove('highlight-flash'), 2000);
+                }
+            });
+        }, 400);
     },
 
     updateGreeting() {
         const hour = new Date().getHours();
-        let greeting = 'Chào bạn';
+        let greetingKey = 'greeting.default';
         let icon = "<i class='bx bx-sun'></i>";
-        
+
         if (hour >= 5 && hour < 12) {
-            greeting = 'Chào buổi sáng';
+            greetingKey = 'greeting.morning';
             icon = "<i class='bx bx-sun'></i>";
         } else if (hour >= 12 && hour < 18) {
-            greeting = 'Chào buổi chiều';
+            greetingKey = 'greeting.afternoon';
             icon = "<i class='bx bx-cloud'></i>";
         } else {
-            greeting = 'Chào buổi tối';
+            greetingKey = 'greeting.evening';
             icon = "<i class='bx bx-moon'></i>";
         }
 
-        const userName = 'Admin'; // Hardcoded for now, can be fetched from profile
+        const greeting = window.i18n ? window.i18n.t(greetingKey) : greetingKey;
+
+        // Lấy tên người dùng từ localStorage
+        let userName = 'Admin';
+        try {
+            const userStr = localStorage.getItem('rentify_user');
+            if (userStr) {
+                const u = JSON.parse(userStr);
+                if (u.name) userName = u.name;
+            }
+        } catch(e) {}
+
         const greetingElement = document.getElementById('greetingTitle');
         if (greetingElement) {
-            if (window.i18n && window.i18n.lang === 'en') {
-                if (hour >= 5 && hour < 12) greeting = 'Good morning';
-                else if (hour >= 12 && hour < 18) greeting = 'Good afternoon';
-                else greeting = 'Good evening';
-            }
             greetingElement.innerHTML = `${greeting} ${icon} ${userName}!`;
         }
     },
@@ -149,6 +769,9 @@ const app = {
             if (res.success) {
                 this.originalRooms = [...res.data];
                 this.rooms = [...res.data];
+                // Reset search when reloading
+                const searchEl = document.getElementById('roomSearchInput');
+                if (searchEl) searchEl.value = '';
                 this.applySort();
                 this.renderRooms();
             } else {
@@ -188,6 +811,19 @@ const app = {
         });
     },
 
+    filterRooms(query) {
+        const q = (query || '').trim().toLowerCase();
+        if (!q) {
+            this.rooms = [...this.originalRooms];
+        } else {
+            this.rooms = this.originalRooms.filter(r =>
+                r.name.toLowerCase().includes(q)
+            );
+        }
+        this.applySort();
+        this.renderRooms();
+    },
+
     renderRooms() {
         const grid = document.getElementById('roomGrid');
         grid.innerHTML = '';
@@ -198,6 +834,7 @@ const app = {
 
             const card = document.createElement('div');
             card.className = 'room-card';
+            card.setAttribute('data-id', room.id);
             // Bấm vào card sẽ mở preview
             card.onclick = () => this.openPreviewModal(room.id);
             
@@ -236,11 +873,15 @@ const app = {
     },
 
     openCreateModal() {
+        if (!this.checkRoomLimit()) return;
         document.getElementById('modalTitle').innerText = 'Thêm phòng mới';
         document.getElementById('roomIdInput').value = '';
         document.getElementById('roomForm').reset();
         
         document.getElementById('contractSection').style.display = 'none';
+
+        // Apply media lock state
+        this.updateProUI();
 
         document.getElementById('roomModal').classList.add('active');
         document.getElementById('saveRoomBtn').disabled = false;
@@ -248,6 +889,11 @@ const app = {
     },
 
     openCreateMultipleModal() {
+        if (!this.isPro()) {
+            this.openPlanModal();
+            this.showToast('Tạo nhiều phòng cùng lúc chỉ dành cho Pro!', 'error');
+            return;
+        }
         document.getElementById('multiRoomForm').reset();
         document.getElementById('letterRangeInputs').style.display = 'none';
         document.getElementById('numberRangeInputs').style.display = 'flex';
@@ -382,6 +1028,11 @@ const app = {
         if (!room) return;
 
         setTimeout(() => {
+            // Reset button state
+            const btn = document.getElementById('saveRoomBtn');
+            btn.disabled = false;
+            btn.innerText = 'Lưu phòng';
+
             document.getElementById('modalTitle').innerText = 'Chỉnh sửa phòng';
             document.getElementById('roomIdInput').value = room.id;
             document.getElementById('roomName').value = room.name;
@@ -393,16 +1044,31 @@ const app = {
             if (room.status === 'Occupied' && room.contracts && room.contracts.length > 0) {
                 document.getElementById('contractSection').style.display = 'block';
                 const c = room.contracts[0];
-                document.getElementById('tenantName').value = c.tenantName;
-                document.getElementById('tenantCount').value = c.tenantCount;
-                document.getElementById('contractStart').value = c.startDate.split('T')[0];
-                document.getElementById('contractEnd').value = c.endDate.split('T')[0];
+                document.getElementById('tenantName').value = c.tenantName || '';
+                document.getElementById('tenantCount').value = c.tenantCount || 1;
+                document.getElementById('tenantPhone').value = c.tenantPhone || '';
+                document.getElementById('tenantEmail').value = c.tenantEmail || '';
+                document.getElementById('contractStart').value = c.startDate ? c.startDate.split('T')[0] : '';
+                document.getElementById('contractEnd').value = c.endDate ? c.endDate.split('T')[0] : '';
+                // Restore per-tenant fields
+                this.renderTenantFields();
+                if (c.tenantList && c.tenantList.length > 0) {
+                    c.tenantList.forEach((t, i) => {
+                        const ni = document.getElementById(`tenant_name_${i + 2}`);
+                        const pi = document.getElementById(`tenant_phone_${i + 2}`);
+                        if (ni) ni.value = t.name || '';
+                        if (pi) pi.value = t.phone || '';
+                    });
+                }
             } else {
                 document.getElementById('contractSection').style.display = 'none';
                 document.getElementById('tenantName').value = '';
                 document.getElementById('tenantCount').value = '1';
+                document.getElementById('tenantPhone').value = '';
+                document.getElementById('tenantEmail').value = '';
                 document.getElementById('contractStart').value = '';
                 document.getElementById('contractEnd').value = '';
+                document.getElementById('tenantFieldsContainer').innerHTML = '';
             }
 
             document.getElementById('roomModal').classList.add('active');
@@ -413,55 +1079,150 @@ const app = {
         const room = this.rooms.find(r => r.id === id);
         if (!room) return;
 
+        this._slideshowRoomId = id;
+        this._slideIndex = 0;
+
         document.getElementById('previewName').innerText = room.name;
         document.getElementById('previewPrice').innerText = `${room.price.toLocaleString('vi-VN')} VNĐ`;
         document.getElementById('previewArea').innerText = `${room.area} m²`;
         document.getElementById('previewType').innerText = room.type;
-        
+
         const badge = document.getElementById('previewStatus');
-        badge.innerText = room.status;
+        const statusLabel = window.i18n ? window.i18n.t(`status.${room.status}`) : room.status;
+        badge.innerText = statusLabel;
         badge.className = `status-badge status-${room.status}`;
 
         if (room.status === 'Occupied' && room.contracts && room.contracts.length > 0) {
             const c = room.contracts[0];
             document.getElementById('previewContractSection').style.display = 'block';
             document.getElementById('previewTenantName').innerText = c.tenantName;
-            document.getElementById('previewTenantCount').innerText = c.tenantCount + ' người';
+            const tenantUnit = window.i18n ? window.i18n.t('preview.tenant_count_unit') : ' người';
+            document.getElementById('previewTenantCount').innerText = c.tenantCount + tenantUnit;
             document.getElementById('previewStartDate').innerText = new Date(c.startDate).toLocaleDateString('vi-VN');
             document.getElementById('previewEndDate').innerText = new Date(c.endDate).toLocaleDateString('vi-VN');
         } else {
             document.getElementById('previewContractSection').style.display = 'none';
         }
 
-        // Render Media
-        const gallery = document.getElementById('previewGallery');
-        gallery.innerHTML = '';
-        
+        // Build slideshow slides
+        const track = document.getElementById('slideshowTrack');
+        track.innerHTML = '';
+        this._slides = [];
+
         if (room.medias && room.medias.length > 0) {
             room.medias.forEach(media => {
+                const slide = document.createElement('div');
+                slide.className = 'slide-item';
                 if (media.type === 'IMAGE') {
-                    gallery.innerHTML += `<img src="${media.url}" class="media-item">`;
-                } else if (media.type === 'VIDEO') {
-                    gallery.innerHTML += `
-                        <div class="media-item" style="background:#333; display:flex; align-items:center; justify-content:center; color:white;">
-                            <a href="${media.url}" target="_blank" style="color:white; text-decoration:none;"><i class='bx bx-play-circle' style="font-size:3rem"></i></a>
-                        </div>
-                    `;
+                    slide.innerHTML = `<img src="${media.url}" alt="ảnh phòng">`;
+                } else {
+                    slide.innerHTML = `<video src="${media.url}" controls></video>`;
                 }
+                track.appendChild(slide);
+                this._slides.push({ mediaId: media.id || media.url });
             });
         } else {
-            gallery.innerHTML = `<div style="grid-column: span 2; display:flex; align-items:center; justify-content:center; color:#6b7280; font-size:4rem;"><i class='bx bx-image'></i></div>`;
+            const empty = document.createElement('div');
+            empty.className = 'slide-item';
+            empty.innerHTML = `<i class='bx bx-image' style="font-size:5rem; color:#555;"></i>`;
+            track.appendChild(empty);
+            this._slides = [{ mediaId: '__empty__' }];
         }
 
-        // Setup Buttons
+        this.updateSlideUI();
+
         document.getElementById('btnEditRoom').onclick = () => this.openEditModal(room.id);
         document.getElementById('btnDeleteRoom').onclick = () => this.deleteRoom(room.id);
-
         document.getElementById('previewModal').classList.add('active');
+    },
+
+    updateSlideUI() {
+        const total = this._slides.length;
+        const idx = this._slideIndex;
+        const track = document.getElementById('slideshowTrack');
+        track.style.transform = `translateX(-${idx * 100}%)`;
+        document.getElementById('slideCounter').textContent = `${idx + 1} / ${total}`;
+        document.getElementById('slidePrev').disabled = idx === 0;
+        document.getElementById('slideNext').disabled = idx === total - 1;
+
+        // Load note for this slide
+        const notes = JSON.parse(localStorage.getItem(`rentify_media_notes_${this._slideshowRoomId}`) || '{}');
+        const mediaId = this._slides[idx]?.mediaId || '';
+        document.getElementById('slideNoteInput').value = notes[mediaId] || '';
+    },
+
+    slideNext() {
+        if (this._slideIndex < this._slides.length - 1) {
+            this._slideIndex++;
+            this.updateSlideUI();
+        }
+    },
+
+    slidePrev() {
+        if (this._slideIndex > 0) {
+            this._slideIndex--;
+            this.updateSlideUI();
+        }
+    },
+
+    saveSlideNote() {
+        const roomId = this._slideshowRoomId;
+        const mediaId = this._slides[this._slideIndex]?.mediaId;
+        if (!roomId || !mediaId || mediaId === '__empty__') return;
+        const key = `rentify_media_notes_${roomId}`;
+        const notes = JSON.parse(localStorage.getItem(key) || '{}');
+        notes[mediaId] = document.getElementById('slideNoteInput').value;
+        localStorage.setItem(key, JSON.stringify(notes));
     },
 
     closeModals() {
         document.querySelectorAll('.modal-overlay').forEach(el => el.classList.remove('active'));
+    },
+
+    onContractStartChange() {
+        const start = document.getElementById('contractStart').value;
+        const endInput = document.getElementById('contractEnd');
+        if (start) endInput.min = start;
+    },
+
+    renderTenantFields() {
+        const count = parseInt(document.getElementById('tenantCount').value) || 1;
+        const container = document.getElementById('tenantFieldsContainer');
+        container.innerHTML = '';
+        if (count <= 1) return;
+        const title = document.createElement('div');
+        title.className = 'form-section-title';
+        title.textContent = `Thông tin ${count - 1} người ở cùng`;
+        container.appendChild(title);
+        for (let i = 2; i <= count; i++) {
+            const row = document.createElement('div');
+            row.className = 'form-group-row';
+            row.innerHTML = `
+                <div class="form-group">
+                    <label>Người ${i} - Họ tên</label>
+                    <input type="text" id="tenant_name_${i}" placeholder="Nguyễn Văn ${String.fromCharCode(64 + i)}" style="width:100%">
+                </div>
+                <div class="form-group">
+                    <label>Người ${i} - SĐT</label>
+                    <input type="tel" id="tenant_phone_${i}" placeholder="09xx xxx xxx" style="width:100%">
+                </div>
+            `;
+            container.appendChild(row);
+        }
+    },
+
+    collectTenantList() {
+        const count = parseInt(document.getElementById('tenantCount').value) || 1;
+        const list = [];
+        for (let i = 2; i <= count; i++) {
+            const nameEl = document.getElementById(`tenant_name_${i}`);
+            const phoneEl = document.getElementById(`tenant_phone_${i}`);
+            list.push({
+                name: nameEl ? nameEl.value : '',
+                phone: phoneEl ? phoneEl.value : ''
+            });
+        }
+        return list;
     },
 
     async handleRoomSubmit(e) {
@@ -481,9 +1242,26 @@ const app = {
 
         if (data.status === 'Occupied') {
             data.tenantName = document.getElementById('tenantName').value;
+            if (!data.tenantName.trim()) {
+                this.showToast('Vui lòng nhập Tên khách thuê!', 'error');
+                btn.disabled = false;
+                btn.innerText = 'Lưu phòng';
+                return;
+            }
             data.tenantCount = Number(document.getElementById('tenantCount').value);
+            data.tenantPhone = document.getElementById('tenantPhone').value;
+            data.tenantEmail = document.getElementById('tenantEmail').value;
+            data.tenantList = this.collectTenantList();
             data.startDate = document.getElementById('contractStart').value;
             data.endDate = document.getElementById('contractEnd').value;
+
+            // Validate contract dates
+            if (data.startDate && data.endDate && data.endDate <= data.startDate) {
+                this.showToast('Ngày kết thúc phải sau ngày bắt đầu!', 'error');
+                btn.disabled = false;
+                btn.innerText = 'Lưu phòng';
+                return;
+            }
         }
 
         try {
@@ -503,8 +1281,13 @@ const app = {
             }
 
             const roomId = id || res.data.id; 
+            
+            // LƯU LỊCH SỬ HỢP ĐỒNG (Contract History)
+            if (data.status === 'Occupied') {
+                this.saveContractHistory(roomId, data.name, data);
+            }
 
-            // Bước 2: Tải lên Ảnh
+            // Bước 2: Tải lên Ảnh/Video
             const files = document.getElementById('roomImages').files;
             if (files && files.length > 0) {
                 this.showToast('Đang tải ảnh/video lên...', 'success');
@@ -513,15 +1296,10 @@ const app = {
                 }
             }
 
-            // Bước 3: Lưu Video URL
-            const videoUrl = document.querySelector('.video-url-input').value;
-            if (videoUrl && videoUrl.trim() !== '') {
-                await api.addVideo(roomId, videoUrl.trim());
-            }
-
             this.showToast('Thao tác thành công!', 'success');
             this.closeModals();
-            this.loadRooms();
+            await this.loadRooms();
+            this.highlightRoom(roomId);
         } catch (err) {
             this.showToast('Lỗi kết nối', 'error');
             btn.disabled = false;
@@ -529,21 +1307,31 @@ const app = {
         }
     },
 
-    async deleteRoom(id) {
-        if (!confirm('Bạn có chắc chắn muốn xóa phòng này?')) return;
-        
-        try {
-            const res = await api.deleteRoom(id);
-            if (res.success) {
-                this.showToast('Đã xóa phòng', 'success');
-                this.closeModals();
-                this.loadRooms();
-            } else {
-                this.showToast(res.message, 'error');
+    deleteRoom(id) {
+        const room = this.rooms.find(r => String(r.id) === String(id));
+        const isOccupied = room && room.status === 'Occupied';
+        const t = key => window.i18n ? window.i18n.t(key) : null;
+        const msg = isOccupied
+            ? (t('rooms.delete_occupied_confirm') || 'Phòng này đang có người thuê. Xóa sẽ kết thúc hợp đồng. Bạn có chắc chắn?')
+            : (t('rooms.delete_confirm') || 'Bạn có chắc chắn muốn xóa phòng này?');
+        const title = isOccupied
+            ? (t('rooms.delete_occupied_title') || '⚠️ Cảnh báo - Phòng có người thuê')
+            : (t('rooms.delete_title') || 'Xóa phòng');
+
+        this.showConfirmDialog(msg, title, async () => {
+            try {
+                const res = await api.deleteRoom(id);
+                if (res.success) {
+                    this.showToast(t('rooms.delete_success') || 'Đã xóa phòng', 'success');
+                    this.closeModals();
+                    this.loadRooms();
+                } else {
+                    this.showToast(res.message, 'error');
+                }
+            } catch (err) {
+                this.showToast('Lỗi kết nối', 'error');
             }
-        } catch (err) {
-            this.showToast('Lỗi kết nối', 'error');
-        }
+        });
     },
 
     updateSelection() {
@@ -560,46 +1348,64 @@ const app = {
         }
     },
 
-    async deleteSelectedRooms() {
+    deleteSelectedRooms() {
         const checkboxes = document.querySelectorAll('.room-checkbox:checked');
         if (checkboxes.length === 0) return;
-        
-        if (!confirm(`Bạn có chắc chắn muốn xóa ${checkboxes.length} phòng đã chọn?`)) return;
-        
-        let successCount = 0;
-        let errorCount = 0;
-        
-        const btn = document.getElementById('btnDeleteSelected');
-        btn.disabled = true;
-        btn.innerText = 'Đang xóa...';
-        
-        for (const cb of checkboxes) {
-            const id = cb.getAttribute('data-id');
-            try {
-                const res = await api.deleteRoom(id);
-                if (res.success) {
-                    successCount++;
-                } else {
-                    errorCount++;
-                }
-            } catch (err) {
-                errorCount++;
+        const t = key => window.i18n ? window.i18n.t(key) : null;
+        const msg = `${t('rooms.delete_selected_confirm') || 'Bạn có chắc chắn muốn xóa'} ${checkboxes.length} ${t('rooms.delete_selected_unit') || 'phòng đã chọn?'}`;
+        this.showConfirmDialog(msg, t('rooms.delete_title') || 'Xóa phòng', async () => {
+            let successCount = 0;
+            let errorCount = 0;
+
+            const btn = document.getElementById('btnDeleteSelected');
+            btn.disabled = true;
+            btn.innerText = 'Đang xóa...';
+
+            for (const cb of checkboxes) {
+                const id = cb.getAttribute('data-id');
+                try {
+                    const res = await api.deleteRoom(id);
+                    if (res.success) { successCount++; } else { errorCount++; }
+                } catch (err) { errorCount++; }
             }
-        }
-        
-        this.showToast(`Đã xóa ${successCount} phòng. Lỗi: ${errorCount}`, successCount > 0 ? 'success' : 'error');
-        btn.disabled = false;
-        btn.innerHTML = `<i class='bx bx-trash'></i> Xóa đã chọn (<span id="selectedCount">0</span>)`;
-        btn.style.display = 'none';
-        this.loadRooms();
+
+            this.showToast(`Đã xóa ${successCount} phòng. Lỗi: ${errorCount}`, successCount > 0 ? 'success' : 'error');
+            btn.disabled = false;
+            btn.innerHTML = `<i class='bx bx-trash'></i> Xóa đã chọn (<span id="selectedCount">0</span>)`;
+            btn.style.display = 'none';
+            this.loadRooms();
+        });
     },
 
-    showToast(message, type = 'success') {
+    showConfirmDialog(message, title, onConfirm, confirmLabel) {
+        const modal = document.getElementById('confirmModal');
+        const t = key => window.i18n ? window.i18n.t(key) : null;
+        document.getElementById('confirmModalTitle').textContent = title || (t('rooms.confirm_title') || 'Xác nhận');
+        document.getElementById('confirmModalMessage').textContent = message;
+        document.getElementById('confirmModalCancel').textContent = t('rooms.confirm_cancel') || 'Hủy';
+        document.getElementById('confirmModalConfirm').textContent = confirmLabel || (t('rooms.confirm_delete') || 'Xóa');
+
+        // Clone buttons to remove old event listeners
+        const oldConfirm = document.getElementById('confirmModalConfirm');
+        const oldCancel = document.getElementById('confirmModalCancel');
+        const newConfirm = oldConfirm.cloneNode(true);
+        const newCancel = oldCancel.cloneNode(true);
+        oldConfirm.parentNode.replaceChild(newConfirm, oldConfirm);
+        oldCancel.parentNode.replaceChild(newCancel, oldCancel);
+
+        newConfirm.onclick = () => { modal.classList.remove('active'); onConfirm(); };
+        newCancel.onclick = () => modal.classList.remove('active');
+        modal.onclick = (e) => { if (e.target === modal) modal.classList.remove('active'); };
+
+        modal.classList.add('active');
+    },
+
+    showToast(message, type = 'success', duration = 3000) {
         const container = document.getElementById('toastContainer');
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
         
-        const icon = type === 'success' ? 'check-circle' : 'error-circle';
+        const icon = type === 'success' ? 'check-circle' : (type === 'info' ? 'info-circle' : 'error-circle');
         
         toast.innerHTML = `
             <i class='bx bx-${icon}'></i>
@@ -611,10 +1417,103 @@ const app = {
         setTimeout(() => {
             toast.style.animation = 'fadeOut 0.3s forwards';
             setTimeout(() => toast.remove(), 300);
-        }, 3000);
+        }, duration);
     },
 
     // --- AUTH LOGIC ---
+    toggleAvatarDropdown() {
+        document.getElementById('avatarDropdown').classList.toggle('open');
+    },
+
+    openProfileDropdown() {
+        document.getElementById('avatarDropdown').classList.remove('open');
+        this.openProfileModal();
+    },
+
+    openProfileModal() {
+        try {
+            const userStr = localStorage.getItem('rentify_user');
+            if (userStr) {
+                const u = JSON.parse(userStr);
+                const avatarSrc = u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name || 'User')}&background=4F46E5&color=fff`;
+                document.getElementById('profilePreview').src = avatarSrc;
+                document.getElementById('profilePreviewName').textContent = u.name || '';
+                document.getElementById('profileName').value = u.name || '';
+                document.getElementById('profileUsername').value = u.username || '';
+                document.getElementById('profileAvatar').value = u.avatar || '';
+                document.getElementById('profilePhone').value = u.phone || '';
+                document.getElementById('profileEmail').value = u.email || '';
+                document.getElementById('profileAddress').value = u.address || '';
+                document.getElementById('profilePassword').value = '';
+            }
+        } catch(e) {}
+        document.getElementById('profileModal').classList.add('active');
+    },
+
+    closeProfileModal() {
+        document.getElementById('profileModal').classList.remove('active');
+    },
+
+    previewProfileAvatar(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            document.getElementById('profilePreview').src = e.target.result;
+            document.getElementById('profilePreviewName').textContent = document.getElementById('profileName').value || 'User';
+            // Store base64 in avatar input
+            document.getElementById('profileAvatar').value = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    },
+
+    onProfileAvatarUrlChange(url) {
+        if (url) {
+            document.getElementById('profilePreview').src = url;
+        }
+    },
+
+    async handleProfileUpdate(e) {
+        e.preventDefault();
+        try {
+            const userStr = localStorage.getItem('rentify_user');
+            const u = userStr ? JSON.parse(userStr) : {};
+            u.name    = document.getElementById('profileName')?.value || u.name;
+            u.avatar  = document.getElementById('profileAvatar')?.value || u.avatar;
+            u.phone   = document.getElementById('profilePhone')?.value || '';
+            u.email   = document.getElementById('profileEmail')?.value || '';
+            u.address = document.getElementById('profileAddress')?.value || '';
+
+            // Avatar fallback
+            const avatarSrc = u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name || 'User')}&background=4F46E5&color=fff`;
+
+            localStorage.setItem('rentify_user', JSON.stringify(u));
+
+            // Update topbar
+            document.getElementById('topbarAvatar').src = avatarSrc;
+            document.getElementById('avatarDropMenuImg').src = avatarSrc;
+            document.getElementById('avatarDropName').textContent = u.name || '';
+
+            // Update greeting
+            this.updateGreeting();
+            this.showToast('Cập nhật thông tin thành công!', 'success');
+            this.closeProfileModal();
+
+            // Try API update if password changed
+            const newPass = document.getElementById('profilePassword')?.value;
+            if (newPass) {
+                const token = localStorage.getItem('rentify_token');
+                await fetch('/api/auth/profile', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ name: u.name, avatar: u.avatar, password: newPass })
+                });
+            }
+        } catch(err) {
+            this.showToast('Lưu thông tin thất bại', 'error');
+        }
+    },
+
     openLoginModal() {
         this.closeAuthModals();
         document.getElementById('authLoginModal').classList.add('active');
@@ -674,6 +1573,7 @@ const app = {
             if (data.success) {
                 localStorage.setItem('rentify_token', data.data.token);
                 localStorage.setItem('rentify_user', JSON.stringify(data.data));
+                if (data.data.role !== 'ADMIN') this.syncProStatus(data.data.id);
                 window.location.reload();
             } else {
                 this.showToast(data.message, 'error');
@@ -705,13 +1605,16 @@ const app = {
             if (data.success) {
                 localStorage.setItem('rentify_token', data.data.token);
                 localStorage.setItem('rentify_user', JSON.stringify(data.data));
-                
-                // Show profile required popup
+                localStorage.removeItem('rentify_pro'); // New account always starts without Pro
+
+                // Show profile update notification
                 this.closeAuthModals();
                 document.getElementById('landingPage').style.display = 'none';
                 document.getElementById('appContainer').style.display = 'flex';
-                document.getElementById('profileRequiredModal').classList.add('active');
                 
+                if (!data.data.name || !data.data.avatar || data.data.name === data.data.username) {
+                    this.openUpdateProfilePromptModal();
+                }
                 // Initialize app to load sidebar and layout
                 this.init();
             } else {
@@ -723,8 +1626,512 @@ const app = {
     },
     goToProfile() {
         document.getElementById('profileRequiredModal').classList.remove('active');
-        document.querySelector('[data-section="appSectionSettings"]').click();
+        this.openProfileModal();
         this.showToast('Mời bạn cập nhật hồ sơ cá nhân.', 'success');
+    },
+
+    updateAuthUI() {
+        const userStr = localStorage.getItem('rentify_user');
+        const loginBtn = document.getElementById('loginBtn');
+        const registerBtn = document.getElementById('registerBtn');
+        const userProfileBtn = document.getElementById('userProfileBtn');
+        const userNameSpan = document.getElementById('userNameSpan');
+        const userAvatar = document.getElementById('userAvatar');
+        const adminPanelLink = document.getElementById('adminPanelLink');
+
+        if (userStr) {
+            const user = JSON.parse(userStr);
+            if (loginBtn) loginBtn.style.display = 'none';
+            if (registerBtn) registerBtn.style.display = 'none';
+            if (userProfileBtn) userProfileBtn.style.display = 'flex';
+            if (userNameSpan) userNameSpan.textContent = user.name;
+            if (userAvatar) userAvatar.src = user.avatar;
+            if (adminPanelLink) adminPanelLink.style.display = user.username === 'admin' ? 'flex' : 'none';
+            
+            // Show notifications
+            this.checkNotifications(user.id);
+        } else {
+            if (loginBtn) loginBtn.style.display = 'block';
+            if (registerBtn) registerBtn.style.display = 'block';
+            if (userProfileBtn) userProfileBtn.style.display = 'none';
+            if (adminPanelLink) adminPanelLink.style.display = 'none';
+        }
+    },
+    
+    // ===== ADMIN SYSTEM =====
+    switchAdminTab(tab) {
+        document.getElementById('btnTabUsers').classList.toggle('active', tab === 'users');
+        document.getElementById('btnTabRequests').classList.toggle('active', tab === 'requests');
+        document.getElementById('adminTabUsers').style.display = tab === 'users' ? 'block' : 'none';
+        document.getElementById('adminTabRequests').style.display = tab === 'requests' ? 'block' : 'none';
+        
+        if(tab === 'users') this.renderAdminUsers();
+        if(tab === 'requests') this.renderAdminRequests();
+    },
+
+    async renderAdminUsers() {
+        try {
+            const token = localStorage.getItem('rentify_token');
+            const res = await fetch('/api/auth/users', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if(data.success) {
+                const search = document.getElementById('adminUserSearch').value.toLowerCase();
+                const users = data.data.filter(u => u.username.toLowerCase().includes(search) || u.name.toLowerCase().includes(search));
+                
+                const grid = document.getElementById('adminUsersGrid');
+                grid.innerHTML = users.map(u => `
+                    <div style="background:var(--bg-color); padding:1rem; border-radius:12px; border:1px solid var(--border-color); display:flex; flex-direction:column; gap:0.5rem;">
+                        <div style="display:flex; align-items:center; gap:1rem;">
+                            <img src="${u.avatar}" style="width:40px; height:40px; border-radius:50%;">
+                            <div>
+                                <div style="font-weight:600;">${u.name} ${u.username === 'admin' ? '<span style="color:red; font-size:0.8rem;">(ADMIN)</span>' : ''}</div>
+                                <div style="font-size:0.85rem; color:var(--text-muted);">@${u.username}</div>
+                            </div>
+                        </div>
+                        <div style="font-size:0.85rem; margin-top:0.5rem;">
+                            Thành viên từ: ${new Date(u.createdAt).toLocaleDateString('vi-VN')}
+                        </div>
+                        <div style="display:flex; gap:0.5rem; margin-top:auto; padding-top:1rem;">
+                            <button class="btn-secondary" style="flex:1; padding:0.25rem;" onclick="app.adminSendBanner(${u.id})">Gửi thông báo</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        } catch (e) {
+            console.error('Admin users error:', e);
+        }
+    },
+
+    renderAdminRequests() {
+        const requests = JSON.parse(localStorage.getItem('rentify_pro_requests') || '[]');
+        const pending = requests.filter(r => r.status === 'PENDING');
+        
+        const list = document.getElementById('adminRequestsList');
+        if(pending.length === 0) {
+            list.innerHTML = `<div style="text-align:center; padding:2rem; color:var(--text-muted);">Không có yêu cầu nào đang chờ.</div>`;
+            return;
+        }
+        
+        list.innerHTML = pending.map(r => {
+            const isUpgrade = r.type === 'upgrade_to_yearly' || r.plan === 'upgrade_to_yearly';
+            const planLabel = isUpgrade
+                ? '⬆️ Nâng cấp lên Gói Năm (849k)'
+                : r.plan === '1_year' ? '1 Năm (849k)' : '1 Tháng (99k)';
+            const typeLabel = isUpgrade
+                ? `<span style="font-size:0.7rem; background:rgba(16,185,129,0.15); color:#10b981; padding:2px 8px; border-radius:99px; font-weight:600;">Nâng cấp gói</span>`
+                : `<span style="font-size:0.7rem; background:rgba(99,102,241,0.15); color:var(--primary-color); padding:2px 8px; border-radius:99px; font-weight:600;">Câp mới</span>`;
+            return `
+            <div style="background:var(--bg-color); padding:1rem; border-radius:12px; border:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center; gap:1rem;">
+                <div style="flex:1; min-width:0;">
+                    <div style="font-weight:600; display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">Yêu cầu từ: @${r.username} ${typeLabel}</div>
+                    <div style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;">Gói: ${planLabel} &nbsp;|&nbsp; Ngày gửi: ${new Date(r.date).toLocaleString('vi-VN')}</div>
+                </div>
+                <div style="display:flex; gap:0.5rem; flex-shrink:0;">
+                    <button class="btn-primary" style="background:#10b981; white-space:nowrap;" onclick="app.approveRequest(${r.id})">Phê duyệt</button>
+                    <button class="btn-secondary" style="color:#ef4444; white-space:nowrap;" onclick="app.rejectRequest(${r.id})">Từ chối</button>
+                </div>
+            </div>`;
+        }).join('');
+    },
+
+    approveRequest(reqId) {
+        let requests = JSON.parse(localStorage.getItem('rentify_pro_requests') || '[]');
+        const idx = requests.findIndex(r => r.id === reqId);
+        if(idx !== -1) {
+            const req = requests[idx];
+            req.status = 'APPROVED';
+            localStorage.setItem('rentify_pro_requests', JSON.stringify(requests));
+            
+            const isUpgrade = req.type === 'upgrade_to_yearly' || req.plan === 'upgrade_to_yearly';
+            let subs = JSON.parse(localStorage.getItem('rentify_subscriptions') || '[]');
+
+            if (isUpgrade) {
+                // Upgrade existing sub to yearly: extend from current expiry date
+                const subIdx = subs.findIndex(s => s.userId === req.userId);
+                if (subIdx !== -1) {
+                    const currentExp = new Date(subs[subIdx].expiresAt);
+                    currentExp.setDate(currentExp.getDate() + 365);
+                    subs[subIdx].plan = '1_year';
+                    subs[subIdx].expiresAt = currentExp.toISOString();
+                    subs[subIdx].autoRenew = true;
+                    subs[subIdx].status = 'active';
+                } else {
+                    // No existing sub (edge case), create one
+                    const expiresAt = new Date();
+                    expiresAt.setDate(expiresAt.getDate() + 365);
+                    subs.push({ userId: req.userId, plan: '1_year', expiresAt: expiresAt.toISOString(), autoRenew: true, status: 'active' });
+                }
+                this.createNotification(req.userId, 'Yêu cầu nâng cấp sang Gói Năm đã được phê duyệt! Tài khoản đã được cập nhật. Hãy đăng nhập lại để áp dụng.', 'success');
+            } else {
+                // New subscription
+                const plan = req.plan;
+                const durationDays = plan === '1_year' ? 365 : 30;
+                const expiresAt = new Date();
+                expiresAt.setDate(expiresAt.getDate() + durationDays);
+                const subData = { userId: req.userId, plan, expiresAt: expiresAt.toISOString(), autoRenew: true, status: 'active' };
+                subs = subs.filter(s => s.userId !== req.userId);
+                subs.push(subData);
+                this.createNotification(req.userId, 'Yêu cầu Pro của bạn đã được phê duyệt! Vui lòng đăng nhập lại để cập nhật.', 'success');
+            }
+
+            localStorage.setItem('rentify_subscriptions', JSON.stringify(subs));
+            this.showToast('Đã phê duyệt!', 'success');
+            this.renderAdminRequests();
+        }
+    },
+
+    rejectRequest(reqId) {
+        let requests = JSON.parse(localStorage.getItem('rentify_pro_requests') || '[]');
+        const idx = requests.findIndex(r => r.id === reqId);
+        if(idx !== -1) {
+            requests[idx].status = 'REJECTED';
+            localStorage.setItem('rentify_pro_requests', JSON.stringify(requests));
+            this.createNotification(requests[idx].userId, 'Yêu cầu Pro của bạn đã bị từ chối do không nhận được thanh toán.', 'error');
+            this.showToast('Đã từ chối!', 'success');
+            this.renderAdminRequests();
+        }
+    },
+    
+    adminSendBanner(userId) {
+        const msg = prompt('Nhập nội dung thông báo gửi cho người dùng này:');
+        if(msg) {
+            this.createNotification(userId, msg, 'info');
+            this.showToast('Đã gửi thông báo!', 'success');
+        }
+    },
+    
+    createNotification(userId, message, type) {
+        const notifs = JSON.parse(localStorage.getItem('rentify_notifications') || '[]');
+        notifs.push({ id: Date.now(), userId, message, type, isRead: false });
+        localStorage.setItem('rentify_notifications', JSON.stringify(notifs));
+    },
+    
+    checkNotifications(userId) {
+        const notifs = JSON.parse(localStorage.getItem('rentify_notifications') || '[]');
+        const unread = notifs.find(n => n.userId === userId && !n.isRead);
+        if (unread) {
+            const modal = document.getElementById('adminNotificationModal');
+            const msgEl = document.getElementById('adminNotificationMessage');
+            if (modal && msgEl) {
+                msgEl.textContent = unread.message;
+                modal.classList.add('active');
+                
+                // Mark read
+                unread.isRead = true;
+                localStorage.setItem('rentify_notifications', JSON.stringify(notifs));
+                
+                // If it's an approval, set local pro status to true
+                if(unread.message.includes('phê duyệt')) {
+                    localStorage.setItem('rentify_pro', 'true');
+                    this.updateProUI();
+                }
+            }
+        }
+    },
+
+    closeAdminNotificationModal() {
+        document.getElementById('adminNotificationModal')?.classList.remove('active');
+    },
+    
+    // ===== CHART RENDERING =====
+    renderCharts() {
+        if (!window.Chart) return;
+        
+        const typeSelect = document.getElementById('chartTypeSelect');
+        const timeframeSelect = document.getElementById('chartTimeframeSelect');
+        if(!typeSelect || !timeframeSelect) return;
+        
+        const type = typeSelect.value || 'bar';
+        const timeframe = timeframeSelect.value || 'month';
+        const ct = key => (window.i18n ? window.i18n.t(key) : null);
+
+        const bills = JSON.parse(localStorage.getItem((window.app && !window.app.isPro() && window.app.isTestUser() ? 'rentify_bills_temp' : 'rentify_bills')) || '[]');
+
+        // Group bills
+        const groups = {};
+
+        bills.forEach(b => {
+            const dateStr = b.dateCreated || b.createdAt || new Date().toISOString();
+            const date = new Date(dateStr);
+            let sortKey = '';
+            let displayKey = '';
+
+            if (timeframe === 'week') {
+                const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+                const pastDaysOfYear = (date - firstDayOfYear) / 86400000;
+                const weekNum = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+                sortKey = `${date.getFullYear()}-W${weekNum.toString().padStart(2, '0')}`;
+                displayKey = `${ct('overview.week_prefix') || 'Tuần'} ${weekNum}, ${date.getFullYear()}`;
+            } else if (timeframe === 'month') {
+                sortKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+                displayKey = `${ct('overview.month_prefix') || 'Tháng'} ${date.getMonth() + 1}/${date.getFullYear()}`;
+            } else if (timeframe === 'quarter') {
+                const q = Math.ceil((date.getMonth() + 1) / 3);
+                sortKey = `${date.getFullYear()}-Q${q}`;
+                displayKey = `${ct('overview.quarter_prefix') || 'Quý'}${q}, ${date.getFullYear()}`;
+            } else if (timeframe === 'year') {
+                sortKey = `${date.getFullYear()}`;
+                displayKey = `${date.getFullYear()}`;
+            }
+            
+            if (!groups[sortKey]) {
+                groups[sortKey] = { display: displayKey, revenue: 0, roomIds: new Set() };
+            }
+            
+            groups[sortKey].revenue += (b.totalAmount || 0);
+            if (b.roomId) groups[sortKey].roomIds.add(b.roomId);
+        });
+        
+        const sortedKeys = Object.keys(groups).sort();
+        const labels = sortedKeys.map(k => groups[k].display);
+        const revenueData = sortedKeys.map(k => groups[k].revenue);
+        const occupiedRoomsData = sortedKeys.map(k => groups[k].roomIds.size);
+        
+        const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim() || '#4f46e5';
+        
+        // Destroy existing charts if they exist
+        if (this.occupiedRoomsChartInstance) {
+            this.occupiedRoomsChartInstance.destroy();
+        }
+        if (this.revenueChartInstance) {
+            this.revenueChartInstance.destroy();
+        }
+        
+        const ctxRooms = document.getElementById('occupiedRoomsChart');
+        if (ctxRooms) {
+            this.occupiedRoomsChartInstance = new Chart(ctxRooms, {
+                type: type,
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: ct('overview.occupied_dataset') || 'Số phòng có khách',
+                        data: occupiedRoomsData,
+                        backgroundColor: primaryColor,
+                        borderColor: primaryColor,
+                        borderWidth: 1,
+                        borderRadius: type === 'bar' ? 4 : 0,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { beginAtZero: true, ticks: { precision: 0 } }
+                    }
+                }
+            });
+        }
+        
+        const ctxRev = document.getElementById('revenueChart');
+        if (ctxRev) {
+            this.revenueChartInstance = new Chart(ctxRev, {
+                type: type,
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: ct('overview.revenue_dataset') || 'Doanh thu (VNĐ)',
+                        data: revenueData,
+                        backgroundColor: '#10b981',
+                        borderColor: '#10b981',
+                        borderWidth: 1,
+                        borderRadius: type === 'bar' ? 4 : 0,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        }
+    },
+    
+    // ===== CONTRACT HISTORY =====
+    saveContractHistory(roomId, roomName, data) {
+        // Mảng lưu trữ: { roomId: string, roomName: string, contracts: array }
+        let history = JSON.parse(localStorage.getItem('rentify_contract_history') || '[]');
+        
+        let roomHistory = history.find(h => h.roomId === roomId);
+        if (!roomHistory) {
+            roomHistory = { roomId, roomName, contracts: [] };
+            history.push(roomHistory);
+        } else {
+            // Cập nhật tên phòng mới nhất nhỡ có đổi tên
+            roomHistory.roomName = roomName;
+        }
+
+        // Kiểm tra xem hợp đồng này có giống hợp đồng cuối không (tránh ghi đè/trùng)
+        const lastContract = roomHistory.contracts.length > 0 ? roomHistory.contracts[roomHistory.contracts.length - 1] : null;
+        
+        const isDuplicate = lastContract && 
+                            lastContract.tenantName === data.tenantName && 
+                            lastContract.startDate === data.startDate;
+
+        if (!isDuplicate) {
+            const newContract = {
+                id: 'contract_' + Date.now(),
+                tenantName: data.tenantName,
+                tenantPhone: data.tenantPhone,
+                tenantEmail: data.tenantEmail,
+                tenantCount: data.tenantCount,
+                tenantList: data.tenantList || [],
+                startDate: data.startDate,
+                endDate: data.endDate,
+                createdAt: new Date().toISOString()
+            };
+            roomHistory.contracts.push(newContract);
+            localStorage.setItem('rentify_contract_history', JSON.stringify(history));
+        }
+    },
+
+    renderContractHistory() {
+        const list = document.getElementById('contractHistoryList');
+        if (!list) return;
+
+        const history = JSON.parse(localStorage.getItem('rentify_contract_history') || '[]');
+        
+        if (history.length === 0) {
+            list.innerHTML = `<div style="text-align:center; padding: 3rem; color:var(--text-muted)">Chưa có dữ liệu lịch sử hợp đồng.</div>`;
+            return;
+        }
+
+        list.innerHTML = history.map(h => `
+            <div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius-lg); overflow: hidden;">
+                <div onclick="app.toggleRoomContracts('${h.roomId}')" style="padding: 1.25rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer; background: rgba(0,0,0,0.02);">
+                    <div style="font-weight: 600; font-size: 1.1rem; color: var(--text-color);">
+                        <i class='bx bx-door-open' style="color: var(--primary-color); margin-right: 0.5rem;"></i>${h.roomName} 
+                        <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 400; margin-left: 0.5rem;">(${h.contracts.length} ${i18n.t('contract.contracts_count')})</span>
+                    </div>
+                    <i class='bx bx-chevron-down' id="icon_${h.roomId}" style="transition: transform 0.2s;"></i>
+                </div>
+                <div id="contracts_${h.roomId}" style="display: none; padding: 1rem; border-top: 1px solid var(--border-color);">
+                    ${h.contracts.slice().reverse().map((c, idx) => `
+                        <div onclick="app.openContractDetailModal('${h.roomId}', '${c.id || c.createdAt || c.startDate}')" style="padding: 1rem; border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 0.75rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--primary-color)'" onmouseout="this.style.borderColor='var(--border-color)'">
+                            <div>
+                                <div style="font-weight: 600; color: var(--text-main); margin-bottom: 0.25rem;">${c.tenantName} ${idx === 0 ? `<span style="background: var(--primary-color); color: white; padding: 2px 6px; border-radius: 12px; font-size: 0.7rem; margin-left: 0.5rem;">${i18n.t('contract.newest')}</span>` : ''}</div>
+                                <div style="font-size: 0.85rem; color: var(--text-muted);">${i18n.t('rooms.detail_tenant')} ${c.tenantPhone || i18n.t('contract.no_data')} | ${i18n.t('contract.start_short')} ${c.startDate ? new Date(c.startDate).toLocaleDateString('vi-VN') : 'N/A'} - ${i18n.t('contract.end_short')} ${c.endDate ? new Date(c.endDate).toLocaleDateString('vi-VN') : 'N/A'}</div>
+                            </div>
+                            <i class='bx bx-right-arrow-alt' style="color: var(--text-muted); font-size: 1.25rem;"></i>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `).join('');
+    },
+
+    toggleRoomContracts(roomId) {
+        const el = document.getElementById(`contracts_${roomId}`);
+        const icon = document.getElementById(`icon_${roomId}`);
+        if (el.style.display === 'none') {
+            el.style.display = 'block';
+            icon.style.transform = 'rotate(180deg)';
+        } else {
+            el.style.display = 'none';
+            icon.style.transform = 'rotate(0deg)';
+        }
+    },
+
+    openContractDetailModal(roomId, contractId) {
+        const history = JSON.parse(localStorage.getItem('rentify_contract_history') || '[]');
+        const roomHistory = history.find(h => h.roomId === roomId);
+        if (!roomHistory) return;
+        
+        const contract = roomHistory.contracts.find(c => (c.id || c.createdAt || c.startDate) === contractId);
+        if (!contract) return;
+
+        const lang = (window.i18n && window.i18n.currentLang) || 'vi';
+        const isEn = lang === 'en';
+
+        // Duration
+        const startD = contract.startDate ? new Date(contract.startDate) : null;
+        const endD = contract.endDate ? new Date(contract.endDate) : null;
+        let durationText = '—';
+        if (startD && endD) {
+            const diffMs = endD - startD;
+            const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+            const months = Math.floor(diffDays / 30);
+            const days = diffDays % 30;
+            durationText = months > 0
+                ? (isEn ? `${months} month(s) ${days > 0 ? days + ' day(s)' : ''}` : `${months} tháng ${days > 0 ? days + ' ngày' : ''}`)
+                : (isEn ? `${diffDays} day(s)` : `${diffDays} ngày`);
+        }
+
+        // All tenants: main + list
+        const allTenants = [
+            {
+                name: contract.tenantName || '—',
+                phone: contract.tenantPhone || '—',
+                email: contract.tenantEmail || null,
+                isMain: true
+            },
+            ...(contract.tenantList || []).map(t => ({ name: t.name || '—', phone: t.phone || '—', isMain: false }))
+        ];
+
+        const tenantCardsHTML = allTenants.map((t, idx) => `
+            <div style="background: ${t.isMain ? 'linear-gradient(135deg, rgba(var(--primary-rgb,99,102,241),0.08), rgba(var(--primary-rgb,99,102,241),0.03))' : 'var(--bg-color)'}; border: 1px solid ${t.isMain ? 'var(--primary-color)' : 'var(--border-color)'}; border-radius: 12px; padding: 1rem 1.25rem; display: flex; align-items: center; gap: 1rem;">
+                <div style="width: 42px; height: 42px; border-radius: 50%; background: ${t.isMain ? 'var(--theme-gradient)' : 'rgba(0,0,0,0.06)'}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: ${t.isMain ? 'white' : 'var(--text-muted)'}; font-size: 1.1rem; font-weight: 700;">
+                    ${t.isMain ? `<i class='bx bx-user'></i>` : idx + 1}
+                </div>
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-weight: 600; color: var(--text-main); font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        ${t.name}
+                        ${t.isMain ? `<span style="font-size: 0.7rem; background: var(--primary-color); color: white; padding: 2px 8px; border-radius: 99px; margin-left: 8px; vertical-align: middle; font-weight: 500;">${isEn ? 'Main' : 'Đại diện'}</span>` : ''}
+                    </div>
+                    <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 3px; display: flex; gap: 1rem; flex-wrap: wrap;">
+                        <span><i class='bx bx-phone' style="vertical-align: middle;"></i> ${t.phone}</span>
+                        ${t.email ? `<span><i class='bx bx-envelope' style="vertical-align: middle;"></i> ${t.email}</span>` : ''}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        const body = document.getElementById('contractDetailBody');
+        body.innerHTML = `
+            <!-- Room info -->
+            <div style="background: var(--bg-color); border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.75rem;">
+                <i class='bx bx-building-house' style="font-size: 1.4rem; color: var(--primary-color);"></i>
+                <div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em;">${isEn ? 'Room' : 'Phòng'}</div>
+                    <div style="font-size: 1.05rem; font-weight: 700; color: var(--text-main);">${roomHistory.roomName}</div>
+                </div>
+            </div>
+
+            <!-- Contract period -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; margin-bottom: 1.25rem;">
+                <div style="background: var(--bg-color); border-radius: 10px; padding: 0.875rem; text-align: center;">
+                    <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 500; text-transform: uppercase; margin-bottom: 4px;">${isEn ? 'Start' : 'Bắt đầu'}</div>
+                    <div style="font-weight: 700; color: var(--text-main); font-size: 0.95rem;">${startD ? startD.toLocaleDateString(isEn ? 'en-US' : 'vi-VN') : '—'}</div>
+                </div>
+                <div style="background: var(--bg-color); border-radius: 10px; padding: 0.875rem; text-align: center;">
+                    <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 500; text-transform: uppercase; margin-bottom: 4px;">${isEn ? 'End' : 'Kết thúc'}</div>
+                    <div style="font-weight: 700; color: var(--text-main); font-size: 0.95rem;">${endD ? endD.toLocaleDateString(isEn ? 'en-US' : 'vi-VN') : '—'}</div>
+                </div>
+                <div style="background: var(--bg-color); border-radius: 10px; padding: 0.875rem; text-align: center;">
+                    <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 500; text-transform: uppercase; margin-bottom: 4px;">${isEn ? 'Duration' : 'Thời hạn'}</div>
+                    <div style="font-weight: 700; color: var(--primary-color); font-size: 0.95rem;">${durationText}</div>
+                </div>
+            </div>
+
+            <!-- Tenants section -->
+            <div style="margin-bottom: 0.5rem; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em;">
+                ${isEn ? 'Tenants' : 'Danh sách người thuê'} (${allTenants.length})
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1rem;">
+                ${tenantCardsHTML}
+            </div>
+
+            <!-- Footer -->
+            <div style="font-size: 0.78rem; color: var(--text-muted); text-align: right; padding-top: 0.75rem; border-top: 1px solid var(--border-color);">
+                <i class='bx bx-time-five' style="vertical-align: middle;"></i>
+                ${isEn ? 'Recorded' : 'Ghi nhận'}: ${new Date(contract.createdAt).toLocaleString(isEn ? 'en-US' : 'vi-VN')}
+            </div>
+        `;
+
+        document.getElementById('contractDetailModal').classList.add('active');
     }
 };
 
