@@ -3,13 +3,20 @@ const billApp = {
     bills: [],
     selectedBills: new Set(),
 
-    init() {
-        // Load data from localStorage
-        const storedPresets = localStorage.getItem((window.app && !window.app.isPro() && window.app.isTestUser && window.app.isTestUser() ? 'rentify_presets_temp' : 'rentify_presets'));
-        if (storedPresets) this.presets = JSON.parse(storedPresets);
-
-        const storedBills = localStorage.getItem((window.app && !window.app.isPro() && window.app.isTestUser && window.app.isTestUser() ? 'rentify_bills_temp' : 'rentify_bills'));
-        if (storedBills) this.bills = JSON.parse(storedBills);
+    async init() {
+        // Load data from API
+        try {
+            const [billsRes, presetsRes] = await Promise.all([
+                api.getBills(),
+                api.getPresets()
+            ]);
+            if (billsRes.success) this.bills = billsRes.data || [];
+            if (presetsRes.success) this.presets = presetsRes.data || [];
+        } catch (e) {
+            console.error('billApp.init error:', e);
+            this.bills = [];
+            this.presets = [];
+        }
 
         this.renderBills();
     },
@@ -32,7 +39,7 @@ const billApp = {
         this.presets.forEach(p => {
             const div = document.createElement('div');
             div.className = 'preset-card';
-            div.innerHTML = `${p.name} <i class='bx bx-x' style="margin-left:5px; cursor:pointer;" onclick="event.stopPropagation(); billApp.deletePreset('${p.id}')"></i>`;
+            div.innerHTML = `${p.name} <i class='bx bx-x' style="margin-left:5px; cursor:pointer;" onclick="event.stopPropagation(); billApp.deletePreset(${p.id})"></i>`;
             div.onclick = () => this.editPreset(p.id);
             list.appendChild(div);
         });
@@ -46,7 +53,6 @@ const billApp = {
 
     addExtraFeeRow(name = '', price = '') {
         const container = document.getElementById('extraFeesContainer');
-        const idx = container.children.length;
         const row = document.createElement('div');
         row.style.cssText = 'display:flex; gap:0.5rem; align-items:center;';
         row.innerHTML = `
@@ -89,11 +95,10 @@ const billApp = {
         (p.extraFees || []).forEach(f => this.addExtraFeeRow(f.name, f.price));
     },
 
-    savePreset(e) {
+    async savePreset(e) {
         e.preventDefault();
-        const id = document.getElementById('presetId').value;
+        const idVal = document.getElementById('presetId').value;
         const presetData = {
-            id: id || 'preset_' + Date.now(),
             name: document.getElementById('presetName').value,
             electricPrice: Number(document.getElementById('presetElectricPrice').value) || 0,
             waterPrice: Number(document.getElementById('presetWaterPrice').value) || 0,
@@ -103,27 +108,59 @@ const billApp = {
             extraFees: this.collectExtraFees()
         };
 
-        if (id) {
-            const idx = this.presets.findIndex(x => x.id === id);
-            if(idx > -1) this.presets[idx] = presetData;
-        } else {
-            this.presets.push(presetData);
-        }
+        try {
+            let res;
+            if (idVal) {
+                res = await api.updatePreset(parseInt(idVal), presetData);
+            } else {
+                res = await api.createPreset(presetData);
+            }
 
-        localStorage.setItem((window.app && !window.app.isPro() && window.app.isTestUser && window.app.isTestUser() ? 'rentify_presets_temp' : 'rentify_presets'), JSON.stringify(this.presets));
-        if (window.app && window.app.showToast) {
-            window.app.showToast('Lưu Preset thành công!');
+            if (res.success) {
+                // Reload presets from API
+                const presetsRes = await api.getPresets();
+                if (presetsRes.success) this.presets = presetsRes.data || [];
+
+                if (window.app && window.app.showToast) {
+                    window.app.showToast('Lưu Preset thành công!');
+                }
+                this.closeModals();
+                this.renderPresets();
+                this.resetPresetForm();
+            } else {
+                if (window.app && window.app.showToast) {
+                    window.app.showToast(res.message || 'Lỗi lưu preset', 'error');
+                }
+            }
+        } catch (err) {
+            console.error('savePreset error:', err);
+            if (window.app && window.app.showToast) {
+                window.app.showToast('Lỗi kết nối server', 'error');
+            }
         }
-        this.closeModals();
-        this.renderPresets();
-        this.resetPresetForm();
     },
 
     deletePreset(id) {
-        const doDelete = () => {
-            this.presets = this.presets.filter(x => x.id !== id);
-            localStorage.setItem((window.app && !window.app.isPro() && window.app.isTestUser && window.app.isTestUser() ? 'rentify_presets_temp' : 'rentify_presets'), JSON.stringify(this.presets));
-            this.renderPresets();
+        const doDelete = async () => {
+            try {
+                const res = await api.deletePreset(id);
+                if (res.success) {
+                    this.presets = this.presets.filter(x => x.id !== id);
+                    this.renderPresets();
+                    if (window.app && window.app.showToast) {
+                        window.app.showToast('Đã xóa preset', 'success');
+                    }
+                } else {
+                    if (window.app && window.app.showToast) {
+                        window.app.showToast(res.message || 'Lỗi xóa preset', 'error');
+                    }
+                }
+            } catch (err) {
+                console.error('deletePreset error:', err);
+                if (window.app && window.app.showToast) {
+                    window.app.showToast('Lỗi kết nối server', 'error');
+                }
+            }
         };
         if (window.app && window.app.showConfirmDialog) {
             window.app.showConfirmDialog('Xóa preset này?', 'Xóa Preset', doDelete);
@@ -210,7 +247,7 @@ const billApp = {
     onPresetSelect() {
         const pid = document.getElementById('billPresetSelect').value;
         if (!pid) return;
-        const p = this.presets.find(x => x.id === pid);
+        const p = this.presets.find(x => String(x.id) === String(pid));
         if (p) {
             // Không đụng vào tiền phòng - giữ nguyên giá phòng đã chọn
             document.getElementById('billElectricPrice').value = p.electricPrice;
@@ -218,12 +255,12 @@ const billApp = {
             document.getElementById('billManagementFee').value = p.managementFee;
             document.getElementById('billInternetFee').value = p.internetFee;
             document.getElementById('billParkingFee').value = p.parkingFee;
-            
+
             // Auto check checkboxes if value > 0
             document.getElementById('chkManagement').checked = p.managementFee > 0;
             document.getElementById('chkInternet').checked = p.internetFee > 0;
             document.getElementById('chkParking').checked = p.parkingFee > 0;
-            
+
             this.calculateBill();
         }
     },
@@ -250,10 +287,10 @@ const billApp = {
                 tenantName = r.contracts && r.contracts.length > 0 ? r.contracts[0].tenantName : 'N/A';
             }
         }
-        
+
         document.getElementById('bpRoomName').innerText = roomName;
         document.getElementById('bpTenantName').innerText = tenantName;
-        
+
         // Tiền phòng: đọc trực tiếp từ ô nhập
         const finalRoomPrice = Number(document.getElementById('billRoomCharge').value) || 0;
         document.getElementById('bpRoomPrice').innerText = finalRoomPrice.toLocaleString('vi-VN') + 'đ';
@@ -326,7 +363,7 @@ const billApp = {
             const template = 'compact';
             const accountName = 'NGUYEN VAN A';
             const description = `Thanh toan tien nha ${roomName.replace(/\s+/g, '')}`;
-            
+
             const baseUrl = `https://img.vietqr.io/image/${bankId}-${accountNo}-${template}.png`;
             const queryParams = new URLSearchParams({
                 amount: grandTotal.toString(),
@@ -340,11 +377,10 @@ const billApp = {
         }
     },
 
-    saveBill() {
+    async saveBill() {
         // Check bill limit for free users
         if (window.app && !window.app.isPro()) {
-            const bills = JSON.parse(localStorage.getItem((window.app && !window.app.isPro() && window.app.isTestUser && window.app.isTestUser() ? 'rentify_bills_temp' : 'rentify_bills')) || '[]');
-            if (bills.length >= 5) {
+            if (this.bills.length >= 5) {
                 window.app.openPlanModal();
                 window.app.showToast('Bản Free tối đa 5 hóa đơn. Nâng cấp Pro!', 'error');
                 return;
@@ -360,32 +396,86 @@ const billApp = {
         const htmlContent = document.getElementById('billPaperPreview').innerHTML;
         const grandTotalText = document.getElementById('bpGrandTotal').innerText;
         const roomName = document.getElementById('bpRoomName').innerText;
-        
+
         const now = new Date();
         const monthText = i18n ? i18n.t('bill.month_year_format').replace('{month}', now.getMonth() + 1).replace('{year}', now.getFullYear()) : `Tháng ${now.getMonth() + 1} Năm ${now.getFullYear()}`;
 
-        const newBill = {
-            id: 'bill_' + Date.now(),
-            roomId,
-            roomName,
-            month: monthText,
-            total: grandTotalText,
-            paid: false,
-            dateCreated: new Date().toISOString(),
-            html: htmlContent
-        };
+        // Parse total amount from formatted string
+        const totalAmount = parseFloat(grandTotalText.replace(/[^\d]/g, '')) || 0;
 
-        this.bills.push(newBill);
-        localStorage.setItem((window.app && !window.app.isPro() && window.app.isTestUser && window.app.isTestUser() ? 'rentify_bills_temp' : 'rentify_bills'), JSON.stringify(this.bills));
+        // If editing existing bill
+        if (this._editingBillId) {
+            try {
+                const res = await api.updateBill(this._editingBillId, {
+                    roomId: String(roomId),
+                    roomName,
+                    month: monthText,
+                    total: grandTotalText,
+                    totalAmount,
+                    html: htmlContent,
+                    dateCreated: new Date().toISOString()
+                });
 
-        if (window.app && window.app.showToast) {
-            window.app.showToast('Đã lưu hóa đơn!', 'success');
+                if (res.success) {
+                    // Reload bills from API
+                    const billsRes = await api.getBills();
+                    if (billsRes.success) this.bills = billsRes.data || [];
+
+                    if (window.app && window.app.showToast) {
+                        window.app.showToast('Đã cập nhật hóa đơn!', 'success');
+                    }
+                } else {
+                    if (window.app && window.app.showToast) {
+                        window.app.showToast(res.message || 'Lỗi cập nhật hóa đơn', 'error');
+                    }
+                }
+            } catch (err) {
+                console.error('updateBill error:', err);
+                if (window.app && window.app.showToast) {
+                    window.app.showToast('Lỗi kết nối server', 'error');
+                }
+            }
+            this._editingBillId = null;
+            this.closeModals();
+            this.renderBills();
+            return;
         }
-        this.closeModals();
-        this.renderBills();
-        // Highlight newly created bill
-        if (window.app && window.app.highlightBill) {
-            window.app.highlightBill(newBill.id);
+
+        // Creating new bill
+        try {
+            const res = await api.createBill({
+                roomId: String(roomId),
+                roomName,
+                month: monthText,
+                total: grandTotalText,
+                totalAmount,
+                paid: false,
+                html: htmlContent,
+                dateCreated: now.toISOString()
+            });
+
+            if (res.success) {
+                this.bills.push(res.data);
+
+                if (window.app && window.app.showToast) {
+                    window.app.showToast('Đã lưu hóa đơn!', 'success');
+                }
+                this.closeModals();
+                this.renderBills();
+                // Highlight newly created bill
+                if (window.app && window.app.highlightBill) {
+                    window.app.highlightBill(res.data.id);
+                }
+            } else {
+                if (window.app && window.app.showToast) {
+                    window.app.showToast(res.message || 'Lỗi lưu hóa đơn', 'error');
+                }
+            }
+        } catch (err) {
+            console.error('saveBill error:', err);
+            if (window.app && window.app.showToast) {
+                window.app.showToast('Lỗi kết nối server', 'error');
+            }
         }
     },
 
@@ -443,16 +533,16 @@ const billApp = {
                     <div style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center; background:var(--card-header-bg, rgba(0,0,0,0.04));">
                         <div style="display:flex; align-items:center; gap:0.5rem;" onclick="event.stopPropagation()">
                             <input type="checkbox" class="bill-checkbox" data-id="${bill.id}" ${isChecked}
-                                onchange="billApp.toggleBillSelection(event, '${bill.id}')" style="transform:scale(1.2)">
+                                onchange="billApp.toggleBillSelection(event, ${bill.id})" style="transform:scale(1.2)">
                             <strong>${bill.roomName}</strong>
                         </div>
                         <span
-                            onclick="event.stopPropagation(); billApp.togglePaid('${bill.id}')"
+                            onclick="event.stopPropagation(); billApp.togglePaid(${bill.id})"
                             style="${paidStyle} font-size:0.72rem; padding:3px 10px; border-radius:99px; font-weight:600; cursor:pointer; user-select:none;"
                             title="${i18n.t('bill.click_to_toggle')}"
                         >${paidLabel}</span>
                     </div>
-                    <div class="room-info" onclick="billApp.viewBill('${bill.id}')" style="cursor:pointer;">
+                    <div class="room-info" onclick="billApp.viewBill(${bill.id})" style="cursor:pointer;">
                         <div class="room-price" style="margin-bottom:0.5rem; text-align:center; font-size:1.5rem;">${bill.total}</div>
                         <div style="text-align:center; color:var(--text-muted); font-size:0.875rem;">
                             ${i18n.t('bill.created_at')} ${new Date(bill.dateCreated).toLocaleString('vi-VN')}
@@ -467,16 +557,28 @@ const billApp = {
         if (window.app && window.app.renderCharts) window.app.renderCharts();
     },
 
-    togglePaid(id) {
+    async togglePaid(id) {
         const bill = this.bills.find(b => b.id === id);
         if (!bill) return;
-        bill.paid = !bill.paid;
-        localStorage.setItem((window.app && !window.app.isPro() && window.app.isTestUser && window.app.isTestUser() ? 'rentify_bills_temp' : 'rentify_bills'), JSON.stringify(this.bills));
-        this.renderBills();
-        const label = bill.paid ? (i18n ? i18n.t('bill.marked_paid') : 'Đã đánh dấu là Đã trả') : (i18n ? i18n.t('bill.marked_unpaid') : 'Đã đánh dấu là Còn nợ');
-        if (window.app && window.app.showToast) window.app.showToast(label, 'success');
-    },
 
+        const newPaid = !bill.paid;
+        try {
+            const res = await api.updateBill(id, { paid: newPaid });
+            if (res.success) {
+                bill.paid = newPaid;
+                this.renderBills();
+                const label = newPaid
+                    ? (i18n ? i18n.t('bill.marked_paid') : 'Đã đánh dấu là Đã trả')
+                    : (i18n ? i18n.t('bill.marked_unpaid') : 'Đã đánh dấu là Còn nợ');
+                if (window.app && window.app.showToast) window.app.showToast(label, 'success');
+            } else {
+                if (window.app && window.app.showToast) window.app.showToast(res.message || 'Lỗi cập nhật', 'error');
+            }
+        } catch (err) {
+            console.error('togglePaid error:', err);
+            if (window.app && window.app.showToast) window.app.showToast('Lỗi kết nối server', 'error');
+        }
+    },
 
     toggleBillSelection(e, id) {
         if (e.target.checked) {
@@ -500,12 +602,22 @@ const billApp = {
 
     deleteSelectedBills() {
         if (this.selectedBills.size === 0) return;
-        const doDelete = () => {
-            this.bills = this.bills.filter(b => !this.selectedBills.has(b.id));
-            localStorage.setItem((window.app && !window.app.isPro() && window.app.isTestUser && window.app.isTestUser() ? 'rentify_bills_temp' : 'rentify_bills'), JSON.stringify(this.bills));
-            this.selectedBills.clear();
-            if (window.app && window.app.showToast) window.app.showToast('Đã xóa các hóa đơn được chọn', 'success');
-            this.renderBills();
+        const doDelete = async () => {
+            try {
+                const ids = [...this.selectedBills];
+                const res = await api.deleteBillsBatch(ids);
+                if (res.success) {
+                    this.bills = this.bills.filter(b => !this.selectedBills.has(b.id));
+                    this.selectedBills.clear();
+                    if (window.app && window.app.showToast) window.app.showToast('Đã xóa các hóa đơn được chọn', 'success');
+                    this.renderBills();
+                } else {
+                    if (window.app && window.app.showToast) window.app.showToast(res.message || 'Lỗi xóa hóa đơn', 'error');
+                }
+            } catch (err) {
+                console.error('deleteSelectedBills error:', err);
+                if (window.app && window.app.showToast) window.app.showToast('Lỗi kết nối server', 'error');
+            }
         };
         const msg = `Bạn có chắc chắn muốn xóa ${this.selectedBills.size} hóa đơn đã chọn?`;
         if (window.app && window.app.showConfirmDialog) {
@@ -528,12 +640,21 @@ const billApp = {
 
     deleteBill() {
         if (!this.currentViewBillId) return;
-        const doDelete = () => {
-            this.bills = this.bills.filter(b => b.id !== this.currentViewBillId);
-            localStorage.setItem((window.app && !window.app.isPro() && window.app.isTestUser && window.app.isTestUser() ? 'rentify_bills_temp' : 'rentify_bills'), JSON.stringify(this.bills));
-            if (window.app && window.app.showToast) window.app.showToast('Đã xóa hóa đơn', 'success');
-            this.closeModals();
-            this.renderBills();
+        const doDelete = async () => {
+            try {
+                const res = await api.deleteBill(this.currentViewBillId);
+                if (res.success) {
+                    this.bills = this.bills.filter(b => b.id !== this.currentViewBillId);
+                    if (window.app && window.app.showToast) window.app.showToast('Đã xóa hóa đơn', 'success');
+                    this.closeModals();
+                    this.renderBills();
+                } else {
+                    if (window.app && window.app.showToast) window.app.showToast(res.message || 'Lỗi xóa hóa đơn', 'error');
+                }
+            } catch (err) {
+                console.error('deleteBill error:', err);
+                if (window.app && window.app.showToast) window.app.showToast('Lỗi kết nối server', 'error');
+            }
         };
         if (window.app && window.app.showConfirmDialog) {
             window.app.showConfirmDialog('Xóa hóa đơn này?', 'Xóa hóa đơn', doDelete);
@@ -550,11 +671,11 @@ const billApp = {
         // Đóng detail modal
         this.closeModals();
 
-        // Mở lại bill modal như khi tạo mới
-        await this.openBillModal();
-
         // Đánh dấu đây là chế độ sửa
         this._editingBillId = bill.id;
+
+        // Mở lại bill modal như khi tạo mới
+        await this.openBillModal();
 
         // Chọn lại phòng
         const roomSelect = document.getElementById('billRoomSelect');
@@ -567,40 +688,6 @@ const billApp = {
         if (window.app && window.app.showToast) {
             window.app.showToast('Đang chỉnh sửa hóa đơn. Điều chỉnh rồi nhấn Lưu.', 'success');
         }
-
-        // Patch saveBill để ghi đè thay vì tạo mới
-        const originalSave = this.saveBill.bind(this);
-        this.saveBill = () => {
-            const roomId = document.getElementById('billRoomSelect').value;
-            if (!roomId) { alert('Vui lòng chọn phòng!'); return; }
-
-            const htmlContent = document.getElementById('billPaperPreview').innerHTML;
-            const grandTotalText = document.getElementById('bpGrandTotal').innerText;
-            const roomName = document.getElementById('bpRoomName').innerText;
-            const now = new Date();
-            const monthText = i18n ? i18n.t('bill.month_year_format').replace('{month}', now.getMonth() + 1).replace('{year}', now.getFullYear()) : `Tháng ${now.getMonth() + 1} Năm ${now.getFullYear()}`;
-
-            // Ghi đè hóa đơn cũ
-            const idx = this.bills.findIndex(b => b.id === this._editingBillId);
-            if (idx > -1) {
-                this.bills[idx] = {
-                    ...this.bills[idx],
-                    roomId, roomName, month: monthText,
-                    total: grandTotalText,
-                    dateCreated: new Date().toISOString(),
-                    html: htmlContent
-                };
-                localStorage.setItem((window.app && !window.app.isPro() && window.app.isTestUser && window.app.isTestUser() ? 'rentify_bills_temp' : 'rentify_bills'), JSON.stringify(this.bills));
-                if (window.app && window.app.showToast) {
-                    window.app.showToast('Đã cập nhật hóa đơn!', 'success');
-                }
-            }
-            // Khôi phục saveBill gốc
-            this.saveBill = originalSave;
-            this._editingBillId = null;
-            this.closeModals();
-            this.renderBills();
-        };
     },
 
     exportPDF() {
@@ -628,7 +715,6 @@ const billApp = {
         });
     },
 
-
     filterBills(query) {
         const q = (query || '').trim().toLowerCase();
         const filtered = !q
@@ -642,6 +728,6 @@ const billApp = {
     }
 };
 
-document.addEventListener('DOMContentLoaded', () => {
-    billApp.init();
+document.addEventListener('DOMContentLoaded', async () => {
+    await billApp.init();
 });

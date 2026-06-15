@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { 
+import {
   getRooms, getRoomById, createRoom, updateRoom, deleteRoom, bulkGenerateRooms,
-  uploadRoomImage, addRoomVideo, deleteRoomMedia
+  uploadRoomImage, addRoomVideo, deleteRoomMedia, getContractHistory
 } from './room.controller';
 import { uploadImage } from '../../core/middlewares/upload.middleware';
 
@@ -65,6 +65,7 @@ const router = Router();
  *         description: Lỗi server
  */
 router.post('/bulk-generate', bulkGenerateRooms);
+router.get('/contract-history', getContractHistory);
 
 /**
  * @swagger

@@ -2,6 +2,8 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// LOCAL DEV: keep provider = "sqlite", DATABASE_URL = "file:./dev.db"
+// VERCEL:    change provider to "postgresql", DATABASE_URL = postgresql://...
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
@@ -14,48 +16,57 @@ model User {
   password  String
   email     String?  @unique
   avatar    String?
-  role      String   @default("ADMIN")
+  role      String   @default("USER")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  bills        Bill[]
+  presets      PricePreset[]
+  subscription Subscription?
+  proRequests  ProRequest[]
+  rooms        Room[]
 }
 
 model Room {
   id        Int        @id @default(autoincrement())
-  name      String     @unique // corresponds to room_number in python
+  userId    Int
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
   price     Float
   area      Float?
   type      String
-  status    String     @default("Available") // Available, Occupied, Maintenance
+  status    String     @default("Available")
   isDeleted Boolean    @default(false)
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
-  
-  // Relations
-  contracts Contract[]
-  medias    RoomMedia[]
+
+  contracts      Contract[]
+  medias         RoomMedia[]
   utilityRecords UtilityRecord[]
   invoices       Invoice[]
+
+  @@unique([userId, name])
 }
 
 model RoomMedia {
   id        Int      @id @default(autoincrement())
   roomId    Int
   room      Room     @relation(fields: [roomId], references: [id])
-  url       String   // Chứa đường dẫn ảnh HOẶC link video ngoài
-  type      String   // Thay vì Enum (SQLite không hỗ trợ Enum), dùng String: "IMAGE", "VIDEO"
+  url       String
+  type      String
   createdAt DateTime @default(now())
 }
 
 model Tenant {
-  id            Int      @id @default(autoincrement())
-  name          String
-  phone         String?
-  email         String?  @unique
-  identityCard  String?  @unique
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           Int      @id @default(autoincrement())
+  name         String
+  phone        String?
+  email        String?
+  identityCard String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  contracts     Contract[]
+  contracts Contract[]
 }
 
 model Contract {
@@ -67,31 +78,31 @@ model Contract {
   depositAmount Float?
   tenantCount   Int      @default(1)
   isActive      Boolean  @default(true)
-  tenantList    String?  // JSON string containing other tenants
+  tenantList    String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  room          Room     @relation(fields: [roomId], references: [id], onDelete: Restrict)
-  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  room   Room   @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
 }
 
 model UtilityRecord {
-  id              Int      @id @default(autoincrement())
-  roomId          Int
-  recordMonth     String   // e.g. "2023-10"
-  electricityOld  Int?
-  electricityNew  Int?
-  waterOld        Int?
-  waterNew        Int?
-  createdAt       DateTime @default(now())
+  id             Int      @id @default(autoincrement())
+  roomId         Int
+  recordMonth    String
+  electricityOld Int?
+  electricityNew Int?
+  waterOld       Int?
+  waterNew       Int?
+  createdAt      DateTime @default(now())
 
-  room            Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
 }
 
 model Invoice {
   id                Int      @id @default(autoincrement())
   roomId            Int
-  invoiceMonth      String   // e.g. "2023-10"
+  invoiceMonth      String
   roomCharge        Float
   electricityCharge Float
   waterCharge       Float
@@ -100,5 +111,61 @@ model Invoice {
   isPaid            Boolean  @default(false)
   createdAt         DateTime @default(now())
 
-  room              Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+}
+
+model Bill {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roomId      String?
+  roomName    String
+  month       String
+  total       String
+  totalAmount Float    @default(0)
+  paid        Boolean  @default(false)
+  html        String
+  dateCreated DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model PricePreset {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  electricPrice Float    @default(0)
+  waterPrice    Float    @default(0)
+  managementFee Float    @default(0)
+  internetFee   Float    @default(0)
+  parkingFee    Float    @default(0)
+  extraFees     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Subscription {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan      String
+  status    String   @default("active")
+  expiresAt DateTime
+  autoRenew Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProRequest {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan      String
+  amount    Float    @default(0)
+  type      String
+  status    String   @default("PENDING")
+  username  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

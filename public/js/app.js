@@ -11,18 +11,13 @@ const app = {
     captchaCode: '',
 
     async init() {
-        // Tự động tước quyền Pro một lần cho tất cả tài khoản để test (theo yêu cầu: xóa trạng thái pro ở các tài khoản khác ngoài admin)
+        // Clear legacy localStorage data (migrated to DB)
         try {
-            if (localStorage.getItem('rentify_global_pro_reset_v1') !== 'true') {
-                localStorage.removeItem('rentify_pro');
-                localStorage.setItem('rentify_subscriptions', '[]');
-                localStorage.setItem('rentify_pro_requests', '[]');
-                localStorage.setItem('rentify_global_pro_reset_v1', 'true');
-                console.log('Global Pro reset executed.');
-            }
-        } catch (e) {
-            console.error('Test reset error:', e);
-        }
+            const legacyKeys = ['rentify_bills', 'rentify_bills_temp', 'rentify_presets',
+                'rentify_presets_temp', 'rentify_subscriptions', 'rentify_pro_requests',
+                'rentify_contract_history', 'rentify_global_pro_reset_v1'];
+            legacyKeys.forEach(k => localStorage.removeItem(k));
+        } catch (e) {}
 
         if (!localStorage.getItem('rentify_token')) {
             document.getElementById('landingPage').style.display = 'flex';
@@ -51,7 +46,7 @@ const app = {
             const uStr = localStorage.getItem('rentify_user');
             if (uStr) {
                 const u = JSON.parse(uStr);
-                if (u.role !== 'ADMIN') this.syncProStatus(u.id);
+                if (u.role !== 'ADMIN') await this.syncProStatus(u.id);
             }
         } catch(e) {}
 
@@ -135,6 +130,7 @@ const app = {
                 e.preventDefault();
                 const targetId = item.getAttribute('data-section');
                 this.switchSection(targetId);
+                this.closeSidebar(); // close drawer on mobile after nav
             });
         });
 
@@ -196,19 +192,18 @@ const app = {
         return localStorage.getItem('rentify_pro') === 'true';
     },
 
-    syncProStatus(userId) {
+    async syncProStatus(userId) {
         try {
-            const subs = JSON.parse(localStorage.getItem('rentify_subscriptions') || '[]');
-            const userSub = subs.find(s => s.userId === userId && s.status === 'active');
-            const isActive = userSub && new Date(userSub.expiresAt) > new Date();
-            if (isActive) {
-                localStorage.setItem('rentify_pro', 'true');
-            } else {
-                localStorage.removeItem('rentify_pro');
+            const res = await api.getSubscription();
+            if (res.success && res.data && res.data.status === 'active') {
+                const expires = new Date(res.data.expiresAt);
+                if (expires > new Date()) {
+                    localStorage.setItem('rentify_pro', 'true');
+                    return;
+                }
             }
-        } catch(e) {
-            localStorage.removeItem('rentify_pro');
-        }
+        } catch(e) {}
+        localStorage.removeItem('rentify_pro');
     },
 
     isTestUser() {
@@ -343,58 +338,55 @@ const app = {
         }
     },
 
-    activatePro() {
-        localStorage.setItem('rentify_pro', 'true');
-        
-        // Initialize mock subscription for direct activation
-        const userStr = localStorage.getItem('rentify_user');
-        if (userStr) {
-            const user = JSON.parse(userStr);
-            const expiresAt = new Date();
-            expiresAt.setDate(expiresAt.getDate() + 30);
-            
-            const subData = {
-                userId: user.id,
+    async activatePro() {
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 30);
+        try {
+            await api.createOrUpdateSubscription({
                 plan: '1_month',
+                status: 'active',
                 expiresAt: expiresAt.toISOString(),
-                autoRenew: true,
-                status: 'active'
-            };
-            
-            let subs = JSON.parse(localStorage.getItem('rentify_subscriptions') || '[]');
-            subs = subs.filter(s => s.userId !== user.id);
-            subs.push(subData);
-            localStorage.setItem('rentify_subscriptions', JSON.stringify(subs));
+                autoRenew: true
+            });
+        } catch(e) {
+            console.error('activatePro error:', e);
         }
-
+        localStorage.setItem('rentify_pro', 'true');
         this.updateProUI();
         this.closePlanModal();
         this.showToast('🎉 Chúc mừng! Bạn đã nâng cấp lên Pro thành công!', 'success');
     },
 
-    openSubscriptionManageModal() {
+    async openSubscriptionManageModal() {
         const userStr = localStorage.getItem('rentify_user');
         if (!userStr) return;
-        const user = JSON.parse(userStr);
-        
-        let subs = JSON.parse(localStorage.getItem('rentify_subscriptions') || '[]');
-        let sub = subs.find(s => s.userId === user.id);
-        
+
+        let sub = null;
+        try {
+            const res = await api.getSubscription();
+            if (res.success && res.data) {
+                sub = res.data;
+            }
+        } catch(e) {}
+
         // If no sub found for this pro user, create a default monthly one starting now
         if (!sub) {
             const expires = new Date();
             expires.setDate(expires.getDate() + 30);
-            sub = {
-                userId: user.id,
-                plan: '1_month',
-                expiresAt: expires.toISOString(),
-                autoRenew: true,
-                status: 'active'
-            };
-            subs.push(sub);
-            localStorage.setItem('rentify_subscriptions', JSON.stringify(subs));
+            try {
+                const res = await api.createOrUpdateSubscription({
+                    plan: '1_month',
+                    expiresAt: expires.toISOString(),
+                    autoRenew: true,
+                    status: 'active'
+                });
+                if (res.success) sub = res.data;
+            } catch(e) {}
+            if (!sub) {
+                sub = { plan: '1_month', expiresAt: expires.toISOString(), autoRenew: true, status: 'active' };
+            }
         }
-        
+
         // Render subscription details
         const subPlanName = document.getElementById('subPlanName');
         const subExpiresAt = document.getElementById('subExpiresAt');
@@ -489,41 +481,51 @@ const app = {
         document.getElementById('qrPaymentModal').classList.add('active');
     },
 
-    toggleAutoRenew() {
-        const userStr = localStorage.getItem('rentify_user');
-        if (!userStr) return;
-        const user = JSON.parse(userStr);
-        
-        let subs = JSON.parse(localStorage.getItem('rentify_subscriptions') || '[]');
-        const idx = subs.findIndex(s => s.userId === user.id);
-        if (idx !== -1) {
-            subs[idx].autoRenew = !subs[idx].autoRenew;
-            localStorage.setItem('rentify_subscriptions', JSON.stringify(subs));
-            
-            const msg = subs[idx].autoRenew ? 'Đã bật tự động gia hạn!' : 'Đã tắt tự động gia hạn!';
-            this.showToast(msg, 'success');
-            this.openSubscriptionManageModal(); // Refresh UI
+    async toggleAutoRenew() {
+        try {
+            const res = await api.getSubscription();
+            if (res.success && res.data) {
+                const sub = res.data;
+                const newAutoRenew = !sub.autoRenew;
+                const updateRes = await api.createOrUpdateSubscription({
+                    plan: sub.plan,
+                    status: sub.status,
+                    expiresAt: sub.expiresAt,
+                    autoRenew: newAutoRenew
+                });
+                if (updateRes.success) {
+                    const msg = newAutoRenew ? 'Đã bật tự động gia hạn!' : 'Đã tắt tự động gia hạn!';
+                    this.showToast(msg, 'success');
+                    this.openSubscriptionManageModal(); // Refresh UI
+                }
+            }
+        } catch(e) {
+            this.showToast('Lỗi cập nhật', 'error');
         }
     },
 
-    cancelSubscription() {
+    async cancelSubscription() {
         if (!confirm('Bạn có chắc chắn muốn hủy gia hạn gói đăng ký Pro không? Bạn vẫn có thể sử dụng các tính năng Pro cho tới khi hết hạn.')) {
             return;
         }
-        
-        const userStr = localStorage.getItem('rentify_user');
-        if (!userStr) return;
-        const user = JSON.parse(userStr);
-        
-        let subs = JSON.parse(localStorage.getItem('rentify_subscriptions') || '[]');
-        const idx = subs.findIndex(s => s.userId === user.id);
-        if (idx !== -1) {
-            subs[idx].status = 'cancelled';
-            subs[idx].autoRenew = false;
-            localStorage.setItem('rentify_subscriptions', JSON.stringify(subs));
-            
-            this.showToast('Đã hủy đăng ký thành công!', 'success');
-            this.openSubscriptionManageModal(); // Refresh UI
+
+        try {
+            const res = await api.getSubscription();
+            if (res.success && res.data) {
+                const sub = res.data;
+                const updateRes = await api.createOrUpdateSubscription({
+                    plan: sub.plan,
+                    status: 'cancelled',
+                    expiresAt: sub.expiresAt,
+                    autoRenew: false
+                });
+                if (updateRes.success) {
+                    this.showToast('Đã hủy đăng ký thành công!', 'success');
+                    this.openSubscriptionManageModal(); // Refresh UI
+                }
+            }
+        } catch(e) {
+            this.showToast('Lỗi hủy đăng ký', 'error');
         }
     },
 
@@ -538,7 +540,7 @@ const app = {
         document.getElementById('qrPaymentModal').classList.add('active');
     },
 
-    sendProRequest() {
+    async sendProRequest() {
         const userStr = localStorage.getItem('rentify_user');
         if (!userStr) {
             this.showToast('Vui lòng đăng nhập trước!', 'error');
@@ -546,31 +548,30 @@ const app = {
         }
         const user = JSON.parse(userStr);
         const plan = this.currentProPlan;
-        
-        // Check for duplicate pending request
-        const requests = JSON.parse(localStorage.getItem('rentify_pro_requests') || '[]');
-        const hasPending = requests.some(r => r.userId === user.id && r.status === 'PENDING' && r.plan === plan);
-        if (hasPending) {
-            this.showToast('Bạn đã có yêu cầu tương tự đang chờ duyệt!', 'error');
-            document.getElementById('qrPaymentModal').classList.remove('active');
-            return;
+        const type = plan === 'upgrade_to_yearly' ? 'upgrade_to_yearly' : 'new_subscription';
+        const amount = plan === '1_year' || plan === 'upgrade_to_yearly' ? 849000 : 99000;
+
+        try {
+            const res = await api.createProRequest({
+                plan,
+                type,
+                amount,
+                username: user.username
+            });
+
+            if (res.success) {
+                document.getElementById('qrPaymentModal').classList.remove('active');
+                this.closePlanModal();
+                this.closeSubscriptionManageModal();
+                this.showToast('Đã gửi yêu cầu! Admin sẽ duyệt sớm nhất.', 'success');
+            } else {
+                this.showToast(res.message || 'Lỗi gửi yêu cầu', 'error');
+                document.getElementById('qrPaymentModal').classList.remove('active');
+            }
+        } catch(e) {
+            console.error('sendProRequest error:', e);
+            this.showToast('Lỗi kết nối server', 'error');
         }
-        
-        requests.push({
-            id: Date.now(),
-            userId: user.id,
-            username: user.username,
-            plan: plan,
-            type: plan === 'upgrade_to_yearly' ? 'upgrade_to_yearly' : 'new_subscription',
-            status: 'PENDING',
-            date: new Date().toISOString()
-        });
-        localStorage.setItem('rentify_pro_requests', JSON.stringify(requests));
-        
-        document.getElementById('qrPaymentModal').classList.remove('active');
-        this.closePlanModal();
-        this.closeSubscriptionManageModal();
-        this.showToast('Đã gửi yêu cầu! Admin sẽ duyệt sớm nhất.', 'success');
     },
 
 
@@ -587,7 +588,7 @@ const app = {
 
     checkBilllimit() {
         if (this.isPro()) return true;
-        const bills = JSON.parse(localStorage.getItem((window.app && !window.app.isPro() && window.app.isTestUser() ? 'rentify_bills_temp' : 'rentify_bills')) || '[]');
+        const bills = (window.billApp && window.billApp.bills) ? window.billApp.bills : [];
         if (bills.length >= 5) {
             this.openPlanModal();
             this.showToast('Bản Free tối đa 5 hóa đơn. Nâng cấp Pro để không giới hạn!', 'error');
@@ -1514,6 +1515,21 @@ const app = {
         }
     },
 
+    toggleSidebar() {
+        const sidebar = document.querySelector('.sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        if (!sidebar || !overlay) return;
+        sidebar.classList.toggle('open');
+        overlay.classList.toggle('active');
+    },
+    closeSidebar() {
+        const sidebar = document.querySelector('.sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        if (!sidebar || !overlay) return;
+        sidebar.classList.remove('open');
+        overlay.classList.remove('active');
+    },
+
     openLoginModal() {
         this.closeAuthModals();
         document.getElementById('authLoginModal').classList.add('active');
@@ -1573,7 +1589,7 @@ const app = {
             if (data.success) {
                 localStorage.setItem('rentify_token', data.data.token);
                 localStorage.setItem('rentify_user', JSON.stringify(data.data));
-                if (data.data.role !== 'ADMIN') this.syncProStatus(data.data.id);
+                if (data.data.role !== 'ADMIN') await this.syncProStatus(data.data.id);
                 window.location.reload();
             } else {
                 this.showToast(data.message, 'error');
@@ -1704,93 +1720,75 @@ const app = {
         }
     },
 
-    renderAdminRequests() {
-        const requests = JSON.parse(localStorage.getItem('rentify_pro_requests') || '[]');
-        const pending = requests.filter(r => r.status === 'PENDING');
-        
+    async renderAdminRequests() {
         const list = document.getElementById('adminRequestsList');
-        if(pending.length === 0) {
-            list.innerHTML = `<div style="text-align:center; padding:2rem; color:var(--text-muted);">Không có yêu cầu nào đang chờ.</div>`;
-            return;
-        }
-        
-        list.innerHTML = pending.map(r => {
-            const isUpgrade = r.type === 'upgrade_to_yearly' || r.plan === 'upgrade_to_yearly';
-            const planLabel = isUpgrade
-                ? '⬆️ Nâng cấp lên Gói Năm (849k)'
-                : r.plan === '1_year' ? '1 Năm (849k)' : '1 Tháng (99k)';
-            const typeLabel = isUpgrade
-                ? `<span style="font-size:0.7rem; background:rgba(16,185,129,0.15); color:#10b981; padding:2px 8px; border-radius:99px; font-weight:600;">Nâng cấp gói</span>`
-                : `<span style="font-size:0.7rem; background:rgba(99,102,241,0.15); color:var(--primary-color); padding:2px 8px; border-radius:99px; font-weight:600;">Câp mới</span>`;
-            return `
-            <div style="background:var(--bg-color); padding:1rem; border-radius:12px; border:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center; gap:1rem;">
-                <div style="flex:1; min-width:0;">
-                    <div style="font-weight:600; display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">Yêu cầu từ: @${r.username} ${typeLabel}</div>
-                    <div style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;">Gói: ${planLabel} &nbsp;|&nbsp; Ngày gửi: ${new Date(r.date).toLocaleString('vi-VN')}</div>
-                </div>
-                <div style="display:flex; gap:0.5rem; flex-shrink:0;">
-                    <button class="btn-primary" style="background:#10b981; white-space:nowrap;" onclick="app.approveRequest(${r.id})">Phê duyệt</button>
-                    <button class="btn-secondary" style="color:#ef4444; white-space:nowrap;" onclick="app.rejectRequest(${r.id})">Từ chối</button>
-                </div>
-            </div>`;
-        }).join('');
-    },
+        list.innerHTML = `<div style="text-align:center; padding:2rem; color:var(--text-muted);">Đang tải...</div>`;
 
-    approveRequest(reqId) {
-        let requests = JSON.parse(localStorage.getItem('rentify_pro_requests') || '[]');
-        const idx = requests.findIndex(r => r.id === reqId);
-        if(idx !== -1) {
-            const req = requests[idx];
-            req.status = 'APPROVED';
-            localStorage.setItem('rentify_pro_requests', JSON.stringify(requests));
-            
-            const isUpgrade = req.type === 'upgrade_to_yearly' || req.plan === 'upgrade_to_yearly';
-            let subs = JSON.parse(localStorage.getItem('rentify_subscriptions') || '[]');
-
-            if (isUpgrade) {
-                // Upgrade existing sub to yearly: extend from current expiry date
-                const subIdx = subs.findIndex(s => s.userId === req.userId);
-                if (subIdx !== -1) {
-                    const currentExp = new Date(subs[subIdx].expiresAt);
-                    currentExp.setDate(currentExp.getDate() + 365);
-                    subs[subIdx].plan = '1_year';
-                    subs[subIdx].expiresAt = currentExp.toISOString();
-                    subs[subIdx].autoRenew = true;
-                    subs[subIdx].status = 'active';
-                } else {
-                    // No existing sub (edge case), create one
-                    const expiresAt = new Date();
-                    expiresAt.setDate(expiresAt.getDate() + 365);
-                    subs.push({ userId: req.userId, plan: '1_year', expiresAt: expiresAt.toISOString(), autoRenew: true, status: 'active' });
-                }
-                this.createNotification(req.userId, 'Yêu cầu nâng cấp sang Gói Năm đã được phê duyệt! Tài khoản đã được cập nhật. Hãy đăng nhập lại để áp dụng.', 'success');
-            } else {
-                // New subscription
-                const plan = req.plan;
-                const durationDays = plan === '1_year' ? 365 : 30;
-                const expiresAt = new Date();
-                expiresAt.setDate(expiresAt.getDate() + durationDays);
-                const subData = { userId: req.userId, plan, expiresAt: expiresAt.toISOString(), autoRenew: true, status: 'active' };
-                subs = subs.filter(s => s.userId !== req.userId);
-                subs.push(subData);
-                this.createNotification(req.userId, 'Yêu cầu Pro của bạn đã được phê duyệt! Vui lòng đăng nhập lại để cập nhật.', 'success');
+        try {
+            const res = await api.getProRequests();
+            if (!res.success) {
+                list.innerHTML = `<div style="text-align:center; padding:2rem; color:var(--text-muted);">Lỗi tải dữ liệu.</div>`;
+                return;
             }
 
-            localStorage.setItem('rentify_subscriptions', JSON.stringify(subs));
-            this.showToast('Đã phê duyệt!', 'success');
-            this.renderAdminRequests();
+            const pending = (res.data || []).filter(r => r.status === 'PENDING');
+
+            if(pending.length === 0) {
+                list.innerHTML = `<div style="text-align:center; padding:2rem; color:var(--text-muted);">Không có yêu cầu nào đang chờ.</div>`;
+                return;
+            }
+
+            list.innerHTML = pending.map(r => {
+                const isUpgrade = r.type === 'upgrade_to_yearly' || r.plan === 'upgrade_to_yearly';
+                const planLabel = isUpgrade
+                    ? '⬆️ Nâng cấp lên Gói Năm (849k)'
+                    : r.plan === '1_year' ? '1 Năm (849k)' : '1 Tháng (99k)';
+                const typeLabel = isUpgrade
+                    ? `<span style="font-size:0.7rem; background:rgba(16,185,129,0.15); color:#10b981; padding:2px 8px; border-radius:99px; font-weight:600;">Nâng cấp gói</span>`
+                    : `<span style="font-size:0.7rem; background:rgba(99,102,241,0.15); color:var(--primary-color); padding:2px 8px; border-radius:99px; font-weight:600;">Cấp mới</span>`;
+                const dateStr = r.date || r.createdAt;
+                return `
+                <div style="background:var(--bg-color); padding:1rem; border-radius:12px; border:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center; gap:1rem;">
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-weight:600; display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">Yêu cầu từ: @${r.username || r.userId} ${typeLabel}</div>
+                        <div style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;">Gói: ${planLabel} &nbsp;|&nbsp; Ngày gửi: ${new Date(dateStr).toLocaleString('vi-VN')}</div>
+                    </div>
+                    <div style="display:flex; gap:0.5rem; flex-shrink:0;">
+                        <button class="btn-primary" style="background:#10b981; white-space:nowrap;" onclick="app.approveRequest(${r.id})">Phê duyệt</button>
+                        <button class="btn-secondary" style="color:#ef4444; white-space:nowrap;" onclick="app.rejectRequest(${r.id})">Từ chối</button>
+                    </div>
+                </div>`;
+            }).join('');
+        } catch(e) {
+            list.innerHTML = `<div style="text-align:center; padding:2rem; color:var(--text-muted);">Lỗi kết nối server.</div>`;
         }
     },
 
-    rejectRequest(reqId) {
-        let requests = JSON.parse(localStorage.getItem('rentify_pro_requests') || '[]');
-        const idx = requests.findIndex(r => r.id === reqId);
-        if(idx !== -1) {
-            requests[idx].status = 'REJECTED';
-            localStorage.setItem('rentify_pro_requests', JSON.stringify(requests));
-            this.createNotification(requests[idx].userId, 'Yêu cầu Pro của bạn đã bị từ chối do không nhận được thanh toán.', 'error');
-            this.showToast('Đã từ chối!', 'success');
-            this.renderAdminRequests();
+    async approveRequest(reqId) {
+        try {
+            const res = await api.updateProRequest(reqId, { status: 'APPROVED' });
+            if (res.success) {
+                this.showToast('Đã phê duyệt!', 'success');
+                this.renderAdminRequests();
+            } else {
+                this.showToast(res.message || 'Lỗi phê duyệt', 'error');
+            }
+        } catch(e) {
+            this.showToast('Lỗi kết nối server', 'error');
+        }
+    },
+
+    async rejectRequest(reqId) {
+        try {
+            const res = await api.updateProRequest(reqId, { status: 'REJECTED' });
+            if (res.success) {
+                this.showToast('Đã từ chối!', 'success');
+                this.renderAdminRequests();
+            } else {
+                this.showToast(res.message || 'Lỗi từ chối', 'error');
+            }
+        } catch(e) {
+            this.showToast('Lỗi kết nối server', 'error');
         }
     },
     
@@ -1847,7 +1845,7 @@ const app = {
         const timeframe = timeframeSelect.value || 'month';
         const ct = key => (window.i18n ? window.i18n.t(key) : null);
 
-        const bills = JSON.parse(localStorage.getItem((window.app && !window.app.isPro() && window.app.isTestUser() ? 'rentify_bills_temp' : 'rentify_bills')) || '[]');
+        const bills = (window.billApp && window.billApp.bills) ? window.billApp.bills : [];
 
         // Group bills
         const groups = {};
@@ -1952,75 +1950,61 @@ const app = {
     
     // ===== CONTRACT HISTORY =====
     saveContractHistory(roomId, roomName, data) {
-        // Mảng lưu trữ: { roomId: string, roomName: string, contracts: array }
-        let history = JSON.parse(localStorage.getItem('rentify_contract_history') || '[]');
-        
-        let roomHistory = history.find(h => h.roomId === roomId);
-        if (!roomHistory) {
-            roomHistory = { roomId, roomName, contracts: [] };
-            history.push(roomHistory);
-        } else {
-            // Cập nhật tên phòng mới nhất nhỡ có đổi tên
-            roomHistory.roomName = roomName;
-        }
-
-        // Kiểm tra xem hợp đồng này có giống hợp đồng cuối không (tránh ghi đè/trùng)
-        const lastContract = roomHistory.contracts.length > 0 ? roomHistory.contracts[roomHistory.contracts.length - 1] : null;
-        
-        const isDuplicate = lastContract && 
-                            lastContract.tenantName === data.tenantName && 
-                            lastContract.startDate === data.startDate;
-
-        if (!isDuplicate) {
-            const newContract = {
-                id: 'contract_' + Date.now(),
-                tenantName: data.tenantName,
-                tenantPhone: data.tenantPhone,
-                tenantEmail: data.tenantEmail,
-                tenantCount: data.tenantCount,
-                tenantList: data.tenantList || [],
-                startDate: data.startDate,
-                endDate: data.endDate,
-                createdAt: new Date().toISOString()
-            };
-            roomHistory.contracts.push(newContract);
-            localStorage.setItem('rentify_contract_history', JSON.stringify(history));
-        }
+        // Contracts are now stored in DB via the room API — no localStorage needed
+        // This method is kept for backward compatibility but does nothing
     },
 
-    renderContractHistory() {
+    async renderContractHistory() {
         const list = document.getElementById('contractHistoryList');
         if (!list) return;
 
-        const history = JSON.parse(localStorage.getItem('rentify_contract_history') || '[]');
-        
-        if (history.length === 0) {
-            list.innerHTML = `<div style="text-align:center; padding: 3rem; color:var(--text-muted)">Chưa có dữ liệu lịch sử hợp đồng.</div>`;
-            return;
-        }
+        list.innerHTML = `<div style="text-align:center; padding: 2rem; color:var(--text-muted)">Đang tải...</div>`;
 
-        list.innerHTML = history.map(h => `
-            <div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius-lg); overflow: hidden;">
-                <div onclick="app.toggleRoomContracts('${h.roomId}')" style="padding: 1.25rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer; background: rgba(0,0,0,0.02);">
-                    <div style="font-weight: 600; font-size: 1.1rem; color: var(--text-color);">
-                        <i class='bx bx-door-open' style="color: var(--primary-color); margin-right: 0.5rem;"></i>${h.roomName} 
-                        <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 400; margin-left: 0.5rem;">(${h.contracts.length} ${i18n.t('contract.contracts_count')})</span>
-                    </div>
-                    <i class='bx bx-chevron-down' id="icon_${h.roomId}" style="transition: transform 0.2s;"></i>
-                </div>
-                <div id="contracts_${h.roomId}" style="display: none; padding: 1rem; border-top: 1px solid var(--border-color);">
-                    ${h.contracts.slice().reverse().map((c, idx) => `
-                        <div onclick="app.openContractDetailModal('${h.roomId}', '${c.id || c.createdAt || c.startDate}')" style="padding: 1rem; border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 0.75rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--primary-color)'" onmouseout="this.style.borderColor='var(--border-color)'">
-                            <div>
-                                <div style="font-weight: 600; color: var(--text-main); margin-bottom: 0.25rem;">${c.tenantName} ${idx === 0 ? `<span style="background: var(--primary-color); color: white; padding: 2px 6px; border-radius: 12px; font-size: 0.7rem; margin-left: 0.5rem;">${i18n.t('contract.newest')}</span>` : ''}</div>
-                                <div style="font-size: 0.85rem; color: var(--text-muted);">${i18n.t('rooms.detail_tenant')} ${c.tenantPhone || i18n.t('contract.no_data')} | ${i18n.t('contract.start_short')} ${c.startDate ? new Date(c.startDate).toLocaleDateString('vi-VN') : 'N/A'} - ${i18n.t('contract.end_short')} ${c.endDate ? new Date(c.endDate).toLocaleDateString('vi-VN') : 'N/A'}</div>
-                            </div>
-                            <i class='bx bx-right-arrow-alt' style="color: var(--text-muted); font-size: 1.25rem;"></i>
+        try {
+            const token = localStorage.getItem('rentify_token');
+            const res = await fetch('/api/rooms/contract-history', { headers: { 'Authorization': `Bearer ${token}` } });
+            const data = await res.json();
+            if (!data.success) {
+                list.innerHTML = `<div style="text-align:center; padding: 3rem; color:var(--text-muted)">Lỗi tải dữ liệu.</div>`;
+                return;
+            }
+
+            // Build history from rooms that have contracts
+            const rooms = (data.data || []).filter(r => r.contracts && r.contracts.length > 0);
+
+            if (rooms.length === 0) {
+                list.innerHTML = `<div style="text-align:center; padding: 3rem; color:var(--text-muted)">Chưa có dữ liệu lịch sử hợp đồng.</div>`;
+                return;
+            }
+
+            // Store for openContractDetailModal
+            this._contractHistoryData = rooms;
+
+            list.innerHTML = rooms.map(h => `
+                <div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius-lg); overflow: hidden;">
+                    <div onclick="app.toggleRoomContracts('${h.id}')" style="padding: 1.25rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer; background: rgba(0,0,0,0.02);">
+                        <div style="font-weight: 600; font-size: 1.1rem; color: var(--text-color);">
+                            <i class='bx bx-door-open' style="color: var(--primary-color); margin-right: 0.5rem;"></i>${h.name}
+                            <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 400; margin-left: 0.5rem;">(${h.contracts.length} ${i18n.t('contract.contracts_count')})</span>
                         </div>
-                    `).join('')}
+                        <i class='bx bx-chevron-down' id="icon_${h.id}" style="transition: transform 0.2s;"></i>
+                    </div>
+                    <div id="contracts_${h.id}" style="display: none; padding: 1rem; border-top: 1px solid var(--border-color);">
+                        ${h.contracts.slice().reverse().map((c, idx) => `
+                            <div onclick="app.openContractDetailModal('${h.id}', '${c.id}')" style="padding: 1rem; border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 0.75rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--primary-color)'" onmouseout="this.style.borderColor='var(--border-color)'">
+                                <div>
+                                    <div style="font-weight: 600; color: var(--text-main); margin-bottom: 0.25rem;">${c.tenantName || 'N/A'} ${idx === 0 ? `<span style="background: var(--primary-color); color: white; padding: 2px 6px; border-radius: 12px; font-size: 0.7rem; margin-left: 0.5rem;">${i18n.t('contract.newest')}</span>` : ''}</div>
+                                    <div style="font-size: 0.85rem; color: var(--text-muted);">${i18n.t('rooms.detail_tenant')} ${c.tenantPhone || i18n.t('contract.no_data')} | ${i18n.t('contract.start_short')} ${c.startDate ? new Date(c.startDate).toLocaleDateString('vi-VN') : 'N/A'} - ${i18n.t('contract.end_short')} ${c.endDate ? new Date(c.endDate).toLocaleDateString('vi-VN') : 'N/A'}</div>
+                                </div>
+                                <i class='bx bx-right-arrow-alt' style="color: var(--text-muted); font-size: 1.25rem;"></i>
+                            </div>
+                        `).join('')}
+                    </div>
                 </div>
-            </div>
-        `).join('');
+            `).join('');
+        } catch(e) {
+            list.innerHTML = `<div style="text-align:center; padding: 3rem; color:var(--text-muted)">Lỗi kết nối server.</div>`;
+        }
     },
 
     toggleRoomContracts(roomId) {
@@ -2036,12 +2020,16 @@ const app = {
     },
 
     openContractDetailModal(roomId, contractId) {
-        const history = JSON.parse(localStorage.getItem('rentify_contract_history') || '[]');
-        const roomHistory = history.find(h => h.roomId === roomId);
+        // Use _contractHistoryData populated by renderContractHistory
+        const historyData = this._contractHistoryData || [];
+        const roomHistory = historyData.find(h => String(h.id) === String(roomId));
         if (!roomHistory) return;
-        
-        const contract = roomHistory.contracts.find(c => (c.id || c.createdAt || c.startDate) === contractId);
+
+        const contract = roomHistory.contracts.find(c => String(c.id) === String(contractId));
         if (!contract) return;
+
+        // roomHistory.name is the room name
+        const roomName = roomHistory.name;
 
         const lang = (window.i18n && window.i18n.currentLang) || 'vi';
         const isEn = lang === 'en';
@@ -2096,7 +2084,7 @@ const app = {
                 <i class='bx bx-building-house' style="font-size: 1.4rem; color: var(--primary-color);"></i>
                 <div>
                     <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em;">${isEn ? 'Room' : 'Phòng'}</div>
-                    <div style="font-size: 1.05rem; font-weight: 700; color: var(--text-main);">${roomHistory.roomName}</div>
+                    <div style="font-size: 1.05rem; font-weight: 700; color: var(--text-main);">${roomName}</div>
                 </div>
             </div>
 

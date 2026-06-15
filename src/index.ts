@@ -41,11 +41,23 @@ app.use(express.static(path.join(__dirname, '../public')));
 // App Routes
 import authRoutes from './modules/auth/auth.routes';
 import roomRoutes from './modules/room/room.routes';
+import billRoutes from './modules/bill/bill.routes';
+import presetRoutes from './modules/preset/preset.routes';
+import subscriptionRoutes from './modules/subscription/subscription.routes';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/rooms', roomRoutes);
+app.use('/api/bills', billRoutes);
+app.use('/api/presets', presetRoutes);
+app.use('/api', subscriptionRoutes);
 
-app.listen(port, () => {
-  console.log(`[server]: Server is running at http://localhost:${port}`);
-  console.log(`[swagger]: API Docs available at http://localhost:${port}/api-docs`);
-});
+// Local dev: start server
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  app.listen(port, () => {
+    console.log(`[server]: Server is running at http://localhost:${port}`);
+    console.log(`[swagger]: API Docs available at http://localhost:${port}/api-docs`);
+  });
+}
+
+// Vercel serverless export
+export default app;

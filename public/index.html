@@ -186,9 +186,16 @@
             </nav>
         </aside>
 
+        <!-- Sidebar overlay (mobile) -->
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="app.closeSidebar()"></div>
+
         <!-- Main Content -->
         <main class="main-content">
             <header class="topbar" style="display: flex; justify-content: space-between; align-items: center;">
+                <!-- Hamburger (mobile only) -->
+                <button class="hamburger-btn" id="hamburgerBtn" onclick="app.toggleSidebar()" aria-label="Menu">
+                    <i class='bx bx-menu'></i>
+                </button>
                 <div style="flex: 1;"></div> <!-- Placeholder trái -->
 
                 <!-- Middle Search Bar -->
