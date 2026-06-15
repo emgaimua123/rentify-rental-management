@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "buildCommand": "npm install prisma --no-save && node node_modules/prisma/build/index.js generate",
   "functions": {
     "api/index.ts": {
       "maxDuration": 30
