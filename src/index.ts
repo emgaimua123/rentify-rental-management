@@ -1,11 +1,12 @@
 import express, { Express, Request, Response } from 'express';
-import dotenv from 'dotenv';
 import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
 import swaggerJsDoc from 'swagger-jsdoc';
 import path from 'path';
 
-dotenv.config();
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  require('dotenv').config();
+}
 
 const app: Express = express();
 const port = process.env.PORT || 3000;
