@@ -1341,7 +1341,10 @@ const app = {
     deleteRoom(id) {
         const room = this.rooms.find(r => String(r.id) === String(id));
         const isOccupied = room && room.status === 'Occupied';
-        const t = key => window.i18n ? window.i18n.t(key) : null;
+        const t = key => {
+            const val = window.i18n ? window.i18n.t(key) : key;
+            return val !== key ? val : null;
+        };
         const msg = isOccupied
             ? (t('rooms.delete_occupied_confirm') || 'Phòng này đang có người thuê. Xóa sẽ kết thúc hợp đồng. Bạn có chắc chắn?')
             : (t('rooms.delete_confirm') || 'Bạn có chắc chắn muốn xóa phòng này?');
@@ -1349,12 +1352,12 @@ const app = {
             ? (t('rooms.delete_occupied_title') || '⚠️ Cảnh báo - Phòng có người thuê')
             : (t('rooms.delete_title') || 'Xóa phòng');
 
+        this.closeModals();
         this.showConfirmDialog(msg, title, async () => {
             try {
                 const res = await api.deleteRoom(id);
                 if (res.success) {
                     this.showToast(t('rooms.delete_success') || 'Đã xóa phòng', 'success');
-                    this.closeModals();
                     this.loadRooms();
                 } else {
                     this.showToast(res.message, 'error');
@@ -1362,7 +1365,7 @@ const app = {
             } catch (err) {
                 this.showToast('Lỗi kết nối', 'error');
             }
-        }, 'Xóa');
+        }, t('rooms.delete_room_btn') || 'Xóa');
     },
 
     updateSelection() {
@@ -1382,8 +1385,12 @@ const app = {
     deleteSelectedRooms() {
         const checkboxes = document.querySelectorAll('.room-checkbox:checked');
         if (checkboxes.length === 0) return;
-        const t = key => window.i18n ? window.i18n.t(key) : null;
+        const t = key => {
+            const val = window.i18n ? window.i18n.t(key) : key;
+            return val !== key ? val : null;
+        };
         const msg = `${t('rooms.delete_selected_confirm') || 'Bạn có chắc chắn muốn xóa'} ${checkboxes.length} ${t('rooms.delete_selected_unit') || 'phòng đã chọn?'}`;
+        this.closeModals();
         this.showConfirmDialog(msg, t('rooms.delete_title') || 'Xóa phòng', async () => {
             let successCount = 0;
             let errorCount = 0;
@@ -1400,12 +1407,15 @@ const app = {
                 } catch (err) { errorCount++; }
             }
 
-            this.showToast(`Đã xóa ${successCount} phòng. Lỗi: ${errorCount}`, successCount > 0 ? 'success' : 'error');
+            const toastMsg = errorCount > 0
+                ? `Đã xóa ${successCount} phòng. Lỗi: ${errorCount}`
+                : `Đã xóa ${successCount} phòng thành công.`;
+            this.showToast(toastMsg, successCount > 0 ? 'success' : 'error');
             btn.disabled = false;
             btn.innerHTML = `<i class='bx bx-trash'></i> Xóa đã chọn (<span id="selectedCount">0</span>)`;
             btn.style.display = 'none';
             this.loadRooms();
-        }, 'Xóa');
+        }, t('rooms.delete_room_btn') || 'Xóa');
     },
 
     showConfirmDialog(message, title, onConfirm, confirmLabel) {

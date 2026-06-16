@@ -97,6 +97,13 @@ const translations = {
         "greeting.default": "Chào bạn",
 
         // Missing Translations
+        "rooms.delete_title": "Xóa phòng",
+        "rooms.delete_occupied_title": "⚠️ Cảnh báo - Phòng có người thuê",
+        "rooms.delete_confirm": "Bạn có chắc chắn muốn xóa phòng này?",
+        "rooms.delete_occupied_confirm": "Phòng này đang có người thuê. Xóa sẽ kết thúc hợp đồng. Bạn có chắc chắn?",
+        "rooms.delete_success": "Đã xóa phòng",
+        "rooms.delete_selected_confirm": "Bạn có chắc chắn muốn xóa",
+        "rooms.delete_selected_unit": "phòng đã chọn?",
         "rooms.detail_name": "Tên Phòng",
         "rooms.detail_area": "Diện tích",
         "rooms.detail_type": "Loại phòng",
@@ -550,8 +557,13 @@ const translations = {
         "bill.vehicle_count": "Number of vehicles",
 
         // Room deletion confirmations
+        "rooms.delete_title": "Delete Room",
+        "rooms.delete_occupied_title": "⚠️ Warning - Occupied Room",
         "rooms.delete_confirm": "Are you sure you want to delete this room?",
-        "rooms.delete_occupied_confirm": "This room has an active tenant. Deleting will end the contract. Are you sure?"
+        "rooms.delete_occupied_confirm": "This room has an active tenant. Deleting will end the contract. Are you sure?",
+        "rooms.delete_success": "Room deleted",
+        "rooms.delete_selected_confirm": "Are you sure you want to delete",
+        "rooms.delete_selected_unit": "selected room(s)?"
     }
 };
 
