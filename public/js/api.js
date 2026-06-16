@@ -66,12 +66,12 @@ const api = {
     },
 
     async getContractHistory() {
-        const res = await fetch(`${API_URL}/rooms/contract-history`, { headers: getAuthHeaders() });
+        const res = await fetch(`${API_URL}/contract-history`, { headers: getAuthHeaders() });
         return res.json();
     },
 
     async updateContract(id, data) {
-        const res = await fetch(`${API_URL}/rooms/contract/${id}`, {
+        const res = await fetch(`${API_URL}/contract/${id}`, {
             method: 'PUT',
             headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(data)
@@ -80,7 +80,7 @@ const api = {
     },
 
     async deleteContract(id) {
-        const res = await fetch(`${API_URL}/rooms/contract/${id}`, {
+        const res = await fetch(`${API_URL}/contract/${id}`, {
             method: 'DELETE',
             headers: getAuthHeaders()
         });
