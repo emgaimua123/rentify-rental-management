@@ -37,7 +37,7 @@ export const getRooms = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id;
     const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
+    const limit = parseInt(req.query.limit as string) || 1000;
     const status = req.query.status as string;
     const sortBy = req.query.sortBy as string;
     const sortOrder = req.query.sortOrder === 'desc' ? 'desc' : 'asc';

@@ -630,7 +630,7 @@ body {
     position: absolute;
     top: calc(100% + 14px);
     right: 0;
-    width: 260px;
+    width: 300px;
     background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
