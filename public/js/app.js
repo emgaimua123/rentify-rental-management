@@ -95,7 +95,8 @@ const app = {
                 if (u.name) document.getElementById('avatarDropName').textContent = u.name;
                 if (u.username) document.getElementById('avatarDropUsername').textContent = '@' + u.username;
 
-                if (!u.name || !u.avatar || u.name === u.username) {
+                const profileDone = localStorage.getItem(`rentify_profile_setup_${u.id}`);
+                if (!profileDone && (!u.name || u.name === u.username)) {
                     setTimeout(() => {
                         this.openUpdateProfilePromptModal();
                     }, 1000);
@@ -1501,6 +1502,8 @@ const app = {
             if (apiData.success) {
                 // Merge server response back so name/avatar are always up-to-date from DB
                 Object.assign(u, apiData.data);
+                // Mark profile as completed so popup doesn't show again
+                localStorage.setItem(`rentify_profile_setup_${u.id}`, 'true');
             }
 
             localStorage.setItem('rentify_user', JSON.stringify(u));
@@ -1633,7 +1636,8 @@ const app = {
                 document.getElementById('landingPage').style.display = 'none';
                 document.getElementById('appContainer').style.display = 'flex';
                 
-                if (!data.data.name || !data.data.avatar || data.data.name === data.data.username) {
+                const profileDoneKey = `rentify_profile_setup_${data.data.id}`;
+                if (!localStorage.getItem(profileDoneKey) && (!data.data.name || data.data.name === data.data.username)) {
                     this.openUpdateProfilePromptModal();
                 }
                 // Initialize app to load sidebar and layout
