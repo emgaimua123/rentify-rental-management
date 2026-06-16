@@ -1047,7 +1047,7 @@
     <div id="toastContainer" class="toast-container"></div>
 
     <!-- Chat Bubble -->
-    <button id="chatBubble" onclick="app.openChatModal()" title="Chat với Admin">
+    <button id="chatBubble" onclick="app.openChatModal()" title="Chat với Admin" data-i18n-title="chat.with_admin">
         <i class='bx bx-chat'></i>
         <span class="chat-unread-badge" id="chatUnreadBadge">0</span>
     </button>
@@ -1533,7 +1533,7 @@
             <div class="modal-header" style="padding:0.875rem 1.25rem; border-bottom:1px solid var(--border-color); display:flex; align-items:center; gap:0.75rem; flex-shrink:0;">
                 <button id="chatBackBtn" onclick="app.chatBackToList()" style="display:none; background:none; border:none; cursor:pointer; color:var(--text-muted); padding:0; font-size:1.1rem;"><i class='bx bx-arrow-back'></i></button>
                 <img id="chatPartnerAvatar" src="" style="width:32px; height:32px; border-radius:50%; object-fit:cover; display:none;" alt="">
-                <h3 id="chatModalTitle" style="flex:1; margin:0; font-size:0.95rem;">Tin nhắn</h3>
+                <h3 id="chatModalTitle" style="flex:1; margin:0; font-size:0.95rem;" data-i18n="chat.messages">Tin nhắn</h3>
                 <button class="btn-close" onclick="app.closeChatModal()"><i class='bx bx-x'></i></button>
             </div>
             <!-- Admin: conversation list -->
@@ -1542,7 +1542,7 @@
             <div id="chatMsgArea" class="chat-messages-area" style="display:none; flex:1; overflow-y:auto; padding:1rem; gap:0.5rem;"></div>
             <!-- Input -->
             <div id="chatInputRow" class="chat-input-row" style="display:none;">
-                <input type="text" id="chatInput" placeholder="Nhập tin nhắn..." onkeydown="if(event.key==='Enter') app.sendChatMessage()">
+                <input type="text" id="chatInput" placeholder="Nhập tin nhắn..." data-i18n="chat.input_placeholder" onkeydown="if(event.key==='Enter') app.sendChatMessage()">
                 <button onclick="app.sendChatMessage()"><i class='bx bx-send'></i></button>
             </div>
         </div>

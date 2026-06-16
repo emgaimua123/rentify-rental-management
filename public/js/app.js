@@ -2184,7 +2184,7 @@ const app = {
         if (isAdmin) {
             await this._loadChatConversations();
         } else {
-            document.getElementById('chatModalTitle').textContent = 'Chat với Admin';
+            document.getElementById('chatModalTitle').textContent = window.i18n ? window.i18n.t('chat.with_admin') : 'Chat với Admin';
             await this._openChatThread(null);
         }
         this._startChatPoll();
@@ -2197,7 +2197,7 @@ const app = {
     },
 
     async _loadChatConversations() {
-        document.getElementById('chatModalTitle').textContent = 'Tin nhắn';
+        document.getElementById('chatModalTitle').textContent = window.i18n ? window.i18n.t('chat.messages') : 'Tin nhắn';
         document.getElementById('chatBackBtn').style.display = 'none';
         document.getElementById('chatPartnerAvatar').style.display = 'none';
         document.getElementById('chatConvList').style.display = 'flex';
@@ -2210,7 +2210,7 @@ const app = {
             const res = await api.getChatConversations();
             const list = document.getElementById('chatConvList');
             if (!res.success || !res.data.length) {
-                list.innerHTML = '<div class="chat-empty">Chưa có cuộc hội thoại nào.</div>';
+                list.innerHTML = `<div class="chat-empty">${window.i18n ? window.i18n.t('chat.empty_conv') : 'Chưa có cuộc hội thoại nào.'}</div>`;
                 return;
             }
             list.innerHTML = res.data.map(c => `
@@ -2223,7 +2223,7 @@ const app = {
                     ${c.unread > 0 ? `<span class="chat-conv-badge">${c.unread}</span>` : ''}
                 </div>`).join('');
         } catch(e) {
-            document.getElementById('chatConvList').innerHTML = '<div class="chat-empty">Lỗi kết nối.</div>';
+            document.getElementById('chatConvList').innerHTML = `<div class="chat-empty">${window.i18n ? window.i18n.t('chat.error_conn') : 'Lỗi kết nối.'}</div>`;
         }
     },
 
@@ -2264,7 +2264,7 @@ const app = {
             if (!res.success) return;
             const area = document.getElementById('chatMsgArea');
             if (!res.data.length) {
-                area.innerHTML = '<div class="chat-empty">Hãy gửi tin nhắn để bắt đầu cuộc trò chuyện.</div>';
+                area.innerHTML = `<div class="chat-empty">${window.i18n ? window.i18n.t('chat.start_conv') : 'Hãy gửi tin nhắn để bắt đầu cuộc trò chuyện.'}</div>`;
                 return;
             }
             const fmt = d => new Date(d).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
@@ -2289,7 +2289,7 @@ const app = {
             await api.sendChatMessage(msg, this._chatCurrentPartnerId);
             await this._loadChatMessages();
         } catch(e) {
-            this.showToast('Lỗi gửi tin nhắn', 'error');
+            this.showToast(window.i18n ? window.i18n.t('chat.error_send') : 'Lỗi gửi tin nhắn', 'error');
         }
     },
 

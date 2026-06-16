@@ -320,6 +320,15 @@ const translations = {
         "pro.plan_month": "Gói Tháng",
         "pro.plan_year": "Gói Năm",
 
+        // Chat
+        "chat.with_admin": "Chat với Admin",
+        "chat.messages": "Tin nhắn",
+        "chat.empty_conv": "Chưa có cuộc hội thoại nào.",
+        "chat.error_conn": "Lỗi kết nối.",
+        "chat.start_conv": "Hãy gửi tin nhắn để bắt đầu cuộc trò chuyện.",
+        "chat.error_send": "Lỗi gửi tin nhắn",
+        "chat.input_placeholder": "Nhập tin nhắn...",
+
         // Bill modal dropdown placeholders
         "bill.select_room_placeholder": "-- Chọn phòng --",
         "bill.preset_placeholder": "-- Tự nhập tay --",
@@ -650,6 +659,15 @@ const translations = {
         "pro.plan_month": "Monthly Plan",
         "pro.plan_year": "Yearly Plan",
 
+        // Chat
+        "chat.with_admin": "Chat with Admin",
+        "chat.messages": "Messages",
+        "chat.empty_conv": "No conversations yet.",
+        "chat.error_conn": "Connection error.",
+        "chat.start_conv": "Send a message to start the conversation.",
+        "chat.error_send": "Error sending message",
+        "chat.input_placeholder": "Type a message...",
+
         // Bill modal dropdown placeholders
         "bill.select_room_placeholder": "-- Select Room --",
         "bill.preset_placeholder": "-- Enter Manually --",
@@ -719,6 +737,13 @@ class I18nManager {
             } else {
                 el.textContent = translated;
             }
+        });
+
+        // Handle title attributes
+        const titleElements = document.querySelectorAll('[data-i18n-title]');
+        titleElements.forEach(el => {
+            const key = el.getAttribute('data-i18n-title');
+            el.title = this.t(key);
         });
 
         // Update search placeholders (dynamic inputs added via JS)
