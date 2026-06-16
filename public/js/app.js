@@ -1346,7 +1346,7 @@ const app = {
             } catch (err) {
                 this.showToast('Lỗi kết nối', 'error');
             }
-        });
+        }, 'Xóa');
     },
 
     updateSelection() {
@@ -1389,16 +1389,15 @@ const app = {
             btn.innerHTML = `<i class='bx bx-trash'></i> Xóa đã chọn (<span id="selectedCount">0</span>)`;
             btn.style.display = 'none';
             this.loadRooms();
-        });
+        }, 'Xóa');
     },
 
     showConfirmDialog(message, title, onConfirm, confirmLabel) {
         const modal = document.getElementById('confirmModal');
-        const t = key => window.i18n ? window.i18n.t(key) : null;
-        document.getElementById('confirmModalTitle').textContent = title || (t('rooms.confirm_title') || 'Xác nhận');
+        document.getElementById('confirmModalTitle').textContent = title || 'Xác nhận';
         document.getElementById('confirmModalMessage').textContent = message;
-        document.getElementById('confirmModalCancel').textContent = t('rooms.confirm_cancel') || 'Hủy';
-        document.getElementById('confirmModalConfirm').textContent = confirmLabel || (t('rooms.confirm_delete') || 'Xóa');
+        document.getElementById('confirmModalCancel').textContent = 'Hủy';
+        document.getElementById('confirmModalConfirm').textContent = confirmLabel || 'Xác nhận';
 
         // Clone buttons to remove old event listeners
         const oldConfirm = document.getElementById('confirmModalConfirm');
@@ -2095,41 +2094,101 @@ const app = {
             return;
         }
 
-        // Group bills by chosen timeframe
-        const groups = {};
-        bills.forEach(b => {
-            const dateStr = b.dateCreated || b.createdAt;
-            if (!dateStr) return;
-            const date = new Date(dateStr);
-            if (isNaN(date.getTime())) return;
-            let sortKey = '', displayKey = '';
+        // ── Helper: parse "Tháng M/YYYY" → Date(year, month-1, 1) ──────────────
+        const parseBillMonth = (monthStr) => {
+            if (!monthStr) return null;
+            const m = monthStr.match(/(\d+)\/(\d{4})/);
+            if (!m) return null;
+            return new Date(parseInt(m[2]), parseInt(m[1]) - 1, 1);
+        };
 
+        // ── Helper: get sortKey + displayKey from a Date ─────────────────────
+        const getKeys = (date) => {
+            if (!date || isNaN(date.getTime())) return null;
             if (timeframe === 'week') {
                 const firstDay = new Date(date.getFullYear(), 0, 1);
-                const weekNum = Math.ceil(((date - firstDay) / 86400000 + firstDay.getDay() + 1) / 7);
-                sortKey    = `${date.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
-                displayKey = `${ct('overview.week_prefix') || 'Tuần'} ${weekNum}/${date.getFullYear()}`;
+                const weekNum  = Math.ceil(((date - firstDay) / 86400000 + firstDay.getDay() + 1) / 7);
+                return { sortKey: `${date.getFullYear()}-W${String(weekNum).padStart(2, '0')}`,
+                         displayKey: `${ct('overview.week_prefix') || 'Tuần'} ${weekNum}/${date.getFullYear()}` };
             } else if (timeframe === 'month') {
-                sortKey    = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-                displayKey = `${ct('overview.month_prefix') || 'Tháng'} ${date.getMonth() + 1}/${date.getFullYear()}`;
+                return { sortKey: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`,
+                         displayKey: `${ct('overview.month_prefix') || 'Tháng'} ${date.getMonth() + 1}/${date.getFullYear()}` };
             } else if (timeframe === 'quarter') {
-                const q    = Math.ceil((date.getMonth() + 1) / 3);
-                sortKey    = `${date.getFullYear()}-Q${q}`;
-                displayKey = `${ct('overview.quarter_prefix') || 'Quý'} ${q}/${date.getFullYear()}`;
+                const q = Math.ceil((date.getMonth() + 1) / 3);
+                return { sortKey: `${date.getFullYear()}-Q${q}`,
+                         displayKey: `${ct('overview.quarter_prefix') || 'Quý'} ${q}/${date.getFullYear()}` };
             } else {
-                sortKey    = `${date.getFullYear()}`;
-                displayKey = `${date.getFullYear()}`;
+                return { sortKey: `${date.getFullYear()}`, displayKey: `${date.getFullYear()}` };
             }
+        };
 
-            if (!groups[sortKey]) groups[sortKey] = { display: displayKey, revenue: 0, roomIds: new Set() };
-            groups[sortKey].revenue += (typeof b.totalAmount === 'number' ? b.totalAmount : 0);
-            if (b.roomId) groups[sortKey].roomIds.add(b.roomId);
+        const groups = {};
+        const ensureGroup = (sortKey, displayKey) => {
+            if (!groups[sortKey]) groups[sortKey] = { display: displayKey, revenue: 0, occupiedRooms: new Set() };
+        };
+
+        // ── REVENUE: chỉ tính hóa đơn đã thanh toán, group theo tháng hóa đơn ──
+        bills.forEach(b => {
+            const date = parseBillMonth(b.month) || new Date(b.dateCreated || b.createdAt);
+            const keys = getKeys(date);
+            if (!keys) return;
+            const { sortKey, displayKey } = keys;
+            ensureGroup(sortKey, displayKey);
+            if (b.paid) {
+                groups[sortKey].revenue += (typeof b.totalAmount === 'number' ? b.totalAmount : 0);
+            }
+            // Đảm bảo period xuất hiện trên trục dù chưa trả
+            ensureGroup(sortKey, displayKey);
         });
+
+        // ── OCCUPIED ROOMS: lấy từ rooms + contracts ─────────────────────────
+        // Phòng status Occupied → dùng contract startDate/endDate để xác định tháng nào có khách
+        const rooms = (window.app && Array.isArray(window.app.rooms)) ? window.app.rooms : [];
+        rooms.forEach(room => {
+            if (!room.contracts || !room.contracts.length) {
+                // Phòng Occupied không có contract → tính tháng hiện tại
+                if (room.status === 'Occupied') {
+                    const keys = getKeys(new Date());
+                    if (keys) {
+                        ensureGroup(keys.sortKey, keys.displayKey);
+                        groups[keys.sortKey].occupiedRooms.add(room.id);
+                    }
+                }
+                return;
+            }
+            room.contracts.forEach(c => {
+                const start = c.startDate ? new Date(c.startDate) : null;
+                const end   = c.endDate   ? new Date(c.endDate)   : new Date();
+                if (!start) return;
+                // Iterate each month the contract covers
+                const cur = new Date(start.getFullYear(), start.getMonth(), 1);
+                const endMonth = new Date(end.getFullYear(), end.getMonth(), 1);
+                while (cur <= endMonth) {
+                    const keys = getKeys(new Date(cur));
+                    if (keys) {
+                        ensureGroup(keys.sortKey, keys.displayKey);
+                        groups[keys.sortKey].occupiedRooms.add(room.id);
+                    }
+                    cur.setMonth(cur.getMonth() + 1);
+                }
+            });
+        });
+
+        // Nếu không có rooms data, fallback: count unique roomIds từ tất cả bills (mọi trạng thái)
+        if (!rooms.length) {
+            bills.forEach(b => {
+                const date = parseBillMonth(b.month) || new Date(b.dateCreated || b.createdAt);
+                const keys = getKeys(date);
+                if (!keys || !b.roomId) return;
+                ensureGroup(keys.sortKey, keys.displayKey);
+                groups[keys.sortKey].occupiedRooms.add(b.roomId);
+            });
+        }
 
         const sortedKeys        = Object.keys(groups).sort();
         const labels            = sortedKeys.map(k => groups[k].display);
         const revenueData       = sortedKeys.map(k => groups[k].revenue);
-        const occupiedRoomsData = sortedKeys.map(k => groups[k].roomIds.size);
+        const occupiedRoomsData = sortedKeys.map(k => groups[k].occupiedRooms.size);
         const primaryColor      = getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim() || '#4f46e5';
 
         const sharedOpts = {

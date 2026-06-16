@@ -163,7 +163,7 @@ const billApp = {
             }
         };
         if (window.app && window.app.showConfirmDialog) {
-            window.app.showConfirmDialog('Xóa preset này?', 'Xóa Preset', doDelete);
+            window.app.showConfirmDialog('Xóa preset này?', 'Xóa Preset', doDelete, 'Xóa');
         } else {
             if (confirm('Xóa preset này?')) doDelete();
         }
@@ -712,7 +712,7 @@ const billApp = {
         };
         const msg = `Bạn có chắc chắn muốn xóa ${this.selectedBills.size} hóa đơn đã chọn?`;
         if (window.app && window.app.showConfirmDialog) {
-            window.app.showConfirmDialog(msg, 'Xóa hóa đơn', doDelete);
+            window.app.showConfirmDialog(msg, 'Xóa hóa đơn', doDelete, 'Xóa');
         } else {
             if (confirm(msg)) doDelete();
         }
@@ -748,7 +748,7 @@ const billApp = {
             }
         };
         if (window.app && window.app.showConfirmDialog) {
-            window.app.showConfirmDialog('Xóa hóa đơn này?', 'Xóa hóa đơn', doDelete);
+            window.app.showConfirmDialog('Xóa hóa đơn này?', 'Xóa hóa đơn', doDelete, 'Xóa');
         } else {
             if (confirm('Xóa hóa đơn này?')) doDelete();
         }
