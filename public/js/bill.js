@@ -944,6 +944,8 @@ const billApp = {
     }
 };
 
+window.billApp = billApp;
+
 document.addEventListener('DOMContentLoaded', async () => {
     await billApp.init();
 });
