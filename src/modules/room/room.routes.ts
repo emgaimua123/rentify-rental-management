@@ -4,6 +4,7 @@ import {
   uploadRoomImage, addRoomVideo, deleteRoomMedia, getContractHistory
 } from './room.controller';
 import { uploadImage } from '../../core/middlewares/upload.middleware';
+import { protect } from '../../middlewares/auth.middleware';
 
 const router = Router();
 
@@ -64,8 +65,8 @@ const router = Router();
  *       500:
  *         description: Lỗi server
  */
-router.post('/bulk-generate', bulkGenerateRooms);
-router.get('/contract-history', getContractHistory);
+router.post('/bulk-generate', protect, bulkGenerateRooms);
+router.get('/contract-history', protect, getContractHistory);
 
 /**
  * @swagger
@@ -151,7 +152,7 @@ router.get('/contract-history', getContractHistory);
  *       500:
  *         description: Lỗi server
  */
-router.get('/', getRooms);
+router.get('/', protect, getRooms);
 
 /**
  * @swagger
@@ -174,7 +175,7 @@ router.get('/', getRooms);
  *       500:
  *         description: Lỗi server
  */
-router.get('/:id', getRoomById);
+router.get('/:id', protect, getRoomById);
 
 /**
  * @swagger
@@ -212,7 +213,7 @@ router.get('/:id', getRoomById);
  *       500:
  *         description: Lỗi server
  */
-router.post('/', createRoom);
+router.post('/', protect, createRoom);
 
 /**
  * @swagger
@@ -254,7 +255,7 @@ router.post('/', createRoom);
  *       500:
  *         description: Lỗi server
  */
-router.put('/:id', updateRoom);
+router.put('/:id', protect, updateRoom);
 
 /**
  * @swagger
@@ -290,7 +291,7 @@ router.put('/:id', updateRoom);
  *       500:
  *         description: Lỗi server
  */
-router.delete('/:id', deleteRoom);
+router.delete('/:id', protect, deleteRoom);
 
 /**
  * @swagger
@@ -325,7 +326,7 @@ router.delete('/:id', deleteRoom);
  *       500:
  *         description: Lỗi server
  */
-router.post('/:roomId/images', uploadImage.single('image'), uploadRoomImage);
+router.post('/:roomId/images', protect, uploadImage.single('image'), uploadRoomImage);
 
 /**
  * @swagger
@@ -362,7 +363,7 @@ router.post('/:roomId/images', uploadImage.single('image'), uploadRoomImage);
  *       500:
  *         description: Lỗi server
  */
-router.post('/:roomId/videos', addRoomVideo);
+router.post('/:roomId/videos', protect, addRoomVideo);
 
 /**
  * @swagger
@@ -385,6 +386,6 @@ router.post('/:roomId/videos', addRoomVideo);
  *       500:
  *         description: Lỗi server
  */
-router.delete('/media/:mediaId', deleteRoomMedia);
+router.delete('/media/:mediaId', protect, deleteRoomMedia);
 
 export default router;

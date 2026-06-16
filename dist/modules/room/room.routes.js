@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const room_controller_1 = require("./room.controller");
 const upload_middleware_1 = require("../../core/middlewares/upload.middleware");
+const auth_middleware_1 = require("../../middlewares/auth.middleware");
 const router = (0, express_1.Router)();
 /**
  * @swagger
@@ -60,8 +61,8 @@ const router = (0, express_1.Router)();
  *       500:
  *         description: Lỗi server
  */
-router.post('/bulk-generate', room_controller_1.bulkGenerateRooms);
-router.get('/contract-history', room_controller_1.getContractHistory);
+router.post('/bulk-generate', auth_middleware_1.protect, room_controller_1.bulkGenerateRooms);
+router.get('/contract-history', auth_middleware_1.protect, room_controller_1.getContractHistory);
 /**
  * @swagger
  * /api/rooms:
@@ -146,7 +147,7 @@ router.get('/contract-history', room_controller_1.getContractHistory);
  *       500:
  *         description: Lỗi server
  */
-router.get('/', room_controller_1.getRooms);
+router.get('/', auth_middleware_1.protect, room_controller_1.getRooms);
 /**
  * @swagger
  * /api/rooms/{id}:
@@ -168,7 +169,7 @@ router.get('/', room_controller_1.getRooms);
  *       500:
  *         description: Lỗi server
  */
-router.get('/:id', room_controller_1.getRoomById);
+router.get('/:id', auth_middleware_1.protect, room_controller_1.getRoomById);
 /**
  * @swagger
  * /api/rooms:
@@ -205,7 +206,7 @@ router.get('/:id', room_controller_1.getRoomById);
  *       500:
  *         description: Lỗi server
  */
-router.post('/', room_controller_1.createRoom);
+router.post('/', auth_middleware_1.protect, room_controller_1.createRoom);
 /**
  * @swagger
  * /api/rooms/{id}:
@@ -246,7 +247,7 @@ router.post('/', room_controller_1.createRoom);
  *       500:
  *         description: Lỗi server
  */
-router.put('/:id', room_controller_1.updateRoom);
+router.put('/:id', auth_middleware_1.protect, room_controller_1.updateRoom);
 /**
  * @swagger
  * /api/rooms/{id}:
@@ -281,7 +282,7 @@ router.put('/:id', room_controller_1.updateRoom);
  *       500:
  *         description: Lỗi server
  */
-router.delete('/:id', room_controller_1.deleteRoom);
+router.delete('/:id', auth_middleware_1.protect, room_controller_1.deleteRoom);
 /**
  * @swagger
  * /api/rooms/{roomId}/images:
@@ -315,7 +316,7 @@ router.delete('/:id', room_controller_1.deleteRoom);
  *       500:
  *         description: Lỗi server
  */
-router.post('/:roomId/images', upload_middleware_1.uploadImage.single('image'), room_controller_1.uploadRoomImage);
+router.post('/:roomId/images', auth_middleware_1.protect, upload_middleware_1.uploadImage.single('image'), room_controller_1.uploadRoomImage);
 /**
  * @swagger
  * /api/rooms/{roomId}/videos:
@@ -351,7 +352,7 @@ router.post('/:roomId/images', upload_middleware_1.uploadImage.single('image'), 
  *       500:
  *         description: Lỗi server
  */
-router.post('/:roomId/videos', room_controller_1.addRoomVideo);
+router.post('/:roomId/videos', auth_middleware_1.protect, room_controller_1.addRoomVideo);
 /**
  * @swagger
  * /api/rooms/media/{mediaId}:
@@ -373,5 +374,5 @@ router.post('/:roomId/videos', room_controller_1.addRoomVideo);
  *       500:
  *         description: Lỗi server
  */
-router.delete('/media/:mediaId', room_controller_1.deleteRoomMedia);
+router.delete('/media/:mediaId', auth_middleware_1.protect, room_controller_1.deleteRoomMedia);
 exports.default = router;
