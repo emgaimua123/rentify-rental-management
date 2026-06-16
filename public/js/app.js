@@ -922,7 +922,7 @@ const app = {
         });
 
         const pageInfo = document.getElementById('pageInfo');
-        if (pageInfo) pageInfo.innerText = `Trang ${this.currentPage} / ${totalPages}`;
+        if (pageInfo) pageInfo.innerText = `${window.i18n ? window.i18n.t('pagination.page') : 'Trang'} ${this.currentPage} / ${totalPages}`;
         
         const btnPrev = document.getElementById('btnPrevPage');
         const btnNext = document.getElementById('btnNextPage');

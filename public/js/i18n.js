@@ -252,6 +252,7 @@ const translations = {
         "common.cancel": "Hủy",
         "pagination.prev": "Trang trước",
         "pagination.next": "Trang sau",
+        "pagination.page": "Trang",
         
         // Export PDF modal
         "bill.export_pdf_title": "Chọn nội dung xuất PDF",
@@ -591,6 +592,7 @@ const translations = {
         "common.cancel": "Cancel",
         "pagination.prev": "Previous",
         "pagination.next": "Next",
+        "pagination.page": "Page",
         
         // Export PDF modal
         "bill.export_pdf_title": "Select PDF Export Content",
