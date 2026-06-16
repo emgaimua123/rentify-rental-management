@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getUsers = exports.getMe = exports.login = exports.register = void 0;
+exports.getUsers = exports.updateProfile = exports.getMe = exports.login = exports.register = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const prismaClient_1 = __importDefault(require("../../core/database/prismaClient"));
@@ -114,6 +114,31 @@ const getMe = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     }
 });
 exports.getMe = getMe;
+const updateProfile = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { name, avatar, password, email } = req.body;
+        const userId = req.user.id;
+        const updateData = {};
+        if (name)
+            updateData.name = name;
+        if (avatar)
+            updateData.avatar = avatar;
+        if (email !== undefined)
+            updateData.email = email || null;
+        if (password)
+            updateData.password = yield bcryptjs_1.default.hash(password, 10);
+        const user = yield prismaClient_1.default.user.update({
+            where: { id: userId },
+            data: updateData,
+            select: { id: true, username: true, name: true, email: true, avatar: true, role: true }
+        });
+        res.json({ success: true, data: user });
+    }
+    catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+exports.updateProfile = updateProfile;
 const getUsers = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const users = yield prismaClient_1.default.user.findMany({

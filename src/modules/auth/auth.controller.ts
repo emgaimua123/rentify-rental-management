@@ -106,6 +106,29 @@ export const getMe = async (req: Request, res: Response) => {
   }
 };
 
+export const updateProfile = async (req: Request, res: Response) => {
+  try {
+    const { name, avatar, password, email } = req.body;
+    const userId = (req as any).user.id;
+
+    const updateData: any = {};
+    if (name)   updateData.name   = name;
+    if (avatar) updateData.avatar = avatar;
+    if (email !== undefined) updateData.email = email || null;
+    if (password) updateData.password = await bcrypt.hash(password, 10);
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: { id: true, username: true, name: true, email: true, avatar: true, role: true }
+    });
+
+    res.json({ success: true, data: user });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 export const getUsers = async (req: Request, res: Response) => {
   try {
     const users = await prisma.user.findMany({

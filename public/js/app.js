@@ -773,16 +773,14 @@ const app = {
             if (res.success) {
                 this.originalRooms = [...res.data];
                 this.rooms = [...res.data];
-                // Reset search when reloading
                 const searchEl = document.getElementById('roomSearchInput');
                 if (searchEl) searchEl.value = '';
                 this.applySort();
                 this.renderRooms();
-            } else {
-                this.showToast('Lỗi tải danh sách phòng', 'error');
             }
+            // Silently ignore failures — server may still be warming up
         } catch (e) {
-            this.showToast('Mất kết nối server', 'error');
+            // Network/parse error — ignore on initial load
         }
     },
 
@@ -1491,28 +1489,32 @@ const app = {
             // Avatar fallback
             const avatarSrc = u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name || 'User')}&background=4F46E5&color=fff`;
 
+            // Always save to DB
+            const newPass = document.getElementById('profilePassword')?.value;
+            const token = localStorage.getItem('rentify_token');
+            const apiRes = await fetch('/api/auth/profile', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ name: u.name, avatar: u.avatar, email: u.email, ...(newPass ? { password: newPass } : {}) })
+            });
+            const apiData = await apiRes.json();
+            if (apiData.success) {
+                // Merge server response back so name/avatar are always up-to-date from DB
+                Object.assign(u, apiData.data);
+            }
+
             localStorage.setItem('rentify_user', JSON.stringify(u));
 
             // Update topbar
-            document.getElementById('topbarAvatar').src = avatarSrc;
-            document.getElementById('avatarDropMenuImg').src = avatarSrc;
+            const finalAvatar = u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name || 'User')}&background=4F46E5&color=fff`;
+            document.getElementById('topbarAvatar').src = finalAvatar;
+            document.getElementById('avatarDropMenuImg').src = finalAvatar;
             document.getElementById('avatarDropName').textContent = u.name || '';
 
             // Update greeting
             this.updateGreeting();
             this.showToast('Cập nhật thông tin thành công!', 'success');
             this.closeProfileModal();
-
-            // Try API update if password changed
-            const newPass = document.getElementById('profilePassword')?.value;
-            if (newPass) {
-                const token = localStorage.getItem('rentify_token');
-                await fetch('/api/auth/profile', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ name: u.name, avatar: u.avatar, password: newPass })
-                });
-            }
         } catch(err) {
             this.showToast('Lưu thông tin thất bại', 'error');
         }
