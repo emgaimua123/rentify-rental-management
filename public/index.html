@@ -441,7 +441,10 @@
                     </div>
                     <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
                         <button class="btn-danger" id="btnDeleteSelectedBills" style="display:none;" onclick="billApp.deleteSelectedBills()">
-                            <i class='bx bx-trash'></i> <span data-i18n="bill.delete_selected">Xóa mục đã chọn</span> (<span id="selectedBillCount">0</span>)
+                            <i class='bx bx-trash'></i> <span data-i18n="bill.delete_selected">Xóa đã chọn</span> (<span id="selectedBillCount">0</span>)
+                        </button>
+                        <button class="btn-primary" id="btnMarkSelectedPaid" style="display:none; background:#10b981; border-color:#10b981;" onclick="billApp.markSelectedAsPaid()">
+                            <i class='bx bx-check-circle'></i> Đánh dấu đã TT (<span id="selectedPaidCount">0</span>)
                         </button>
                         <button class="btn-secondary btn-with-crown" id="btnPresetPrice" onclick="billApp.openPresetModal()" style="position:relative;">
                             <i class='bx bx-slider-alt'></i> <span data-i18n="bill.price_preset_btn">Điều chỉnh giá</span>
@@ -1229,7 +1232,7 @@
     <div class="modal-overlay" id="contractDetailModal" style="z-index: 1050;">
         <div class="modal-card">
             <div class="modal-header">
-                <h3 data-i18n="contract.history_detail_title">Chi tiết Hợp đồng Lịch sử</h3>
+                <h3>Chi tiết Hợp đồng</h3>
                 <button class="modal-close" onclick="document.getElementById('contractDetailModal').classList.remove('active')"><i class='bx bx-x'></i></button>
             </div>
             <div class="modal-body" id="contractDetailBody" style="line-height: 1.6;">
@@ -1273,6 +1276,188 @@
             <div style="display:flex; justify-content:flex-end; gap:0.75rem; padding: 1rem 1.5rem; border-top: 1px solid var(--border-color);">
                 <button id="confirmModalCancel" class="btn-secondary" style="padding: 0.6rem 1.25rem; border-radius: 8px; cursor: pointer; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-color); font-size: 0.9rem;"></button>
                 <button id="confirmModalConfirm" style="padding: 0.6rem 1.25rem; border-radius: 8px; cursor: pointer; border: none; background: var(--danger, #ef4444); color: #fff; font-size: 0.9rem; font-weight: 600;"></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden container để render PDF (off-screen) -->
+    <div id="pdfRenderContainer" style="position:fixed; top:-99999px; left:-99999px; width:794px; background:#fff; font-family:'Inter',sans-serif; z-index:-1;"></div>
+
+    <!-- Modal: Chọn nội dung xuất PDF -->
+    <div class="modal-overlay" id="exportPDFOptionsModal" style="z-index: 10010;">
+        <div class="modal-card" style="max-width:480px;">
+            <div class="modal-header" style="border-bottom:1px solid var(--border-color);">
+                <h3 style="display:flex; align-items:center; gap:0.5rem;">
+                    <i class='bx bxs-file-pdf' style="color:#ef4444;"></i> Chọn nội dung xuất PDF
+                </h3>
+                <button class="btn-close" onclick="billApp.closeExportOptionsModal()"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="modal-body" style="display:flex; flex-direction:column; gap:0.75rem; padding:1.5rem;">
+                <button onclick="billApp.exportPDFBill()" style="display:flex; align-items:center; gap:1rem; padding:1rem 1.25rem; background:var(--bg-color); border:1.5px solid var(--border-color); border-radius:12px; cursor:pointer; text-align:left; transition:all 0.2s; font-family:inherit; color:var(--text-color);" onmouseover="this.style.borderColor='var(--primary-color)'" onmouseout="this.style.borderColor='var(--border-color)'">
+                    <div style="width:44px; height:44px; border-radius:10px; background:rgba(79,70,229,0.1); color:var(--primary-color); display:flex; align-items:center; justify-content:center; font-size:1.4rem; flex-shrink:0;"><i class='bx bx-file'></i></div>
+                    <div><div style="font-weight:600; font-size:0.95rem;">Xuất Hóa đơn</div><div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">Chỉ nội dung hóa đơn, không kèm mã QR</div></div>
+                </button>
+                <button onclick="billApp.exportPDFQR()" style="display:flex; align-items:center; gap:1rem; padding:1rem 1.25rem; background:var(--bg-color); border:1.5px solid var(--border-color); border-radius:12px; cursor:pointer; text-align:left; transition:all 0.2s; font-family:inherit; color:var(--text-color);" onmouseover="this.style.borderColor='#10b981'" onmouseout="this.style.borderColor='var(--border-color)'">
+                    <div style="width:44px; height:44px; border-radius:10px; background:rgba(16,185,129,0.1); color:#10b981; display:flex; align-items:center; justify-content:center; font-size:1.4rem; flex-shrink:0;"><i class='bx bx-qr'></i></div>
+                    <div><div style="font-weight:600; font-size:0.95rem;">Xuất Mã QR</div><div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">Chỉ mã QR thanh toán, hiển thị lớn trên A4</div></div>
+                </button>
+                <button onclick="billApp.exportPDFBoth()" style="display:flex; align-items:center; gap:1rem; padding:1rem 1.25rem; background:var(--bg-color); border:1.5px solid var(--border-color); border-radius:12px; cursor:pointer; text-align:left; transition:all 0.2s; font-family:inherit; color:var(--text-color);" onmouseover="this.style.borderColor='#f59e0b'" onmouseout="this.style.borderColor='var(--border-color)'">
+                    <div style="width:44px; height:44px; border-radius:10px; background:rgba(245,158,11,0.1); color:#f59e0b; display:flex; align-items:center; justify-content:center; font-size:1.4rem; flex-shrink:0;"><i class='bx bx-copy-alt'></i></div>
+                    <div><div style="font-weight:600; font-size:0.95rem;">Xuất cả hai</div><div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">Hóa đơn trang 1 · Mã QR trang 2 (2 trang A4)</div></div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Admin thu hồi Pro (nhập lý do) -->
+    <div class="modal-overlay" id="revokeProModal" style="z-index: 100001;">
+        <div class="modal-card" style="max-width:460px;">
+            <div class="modal-header" style="border-bottom:1px solid var(--border-color);">
+                <h3 style="display:flex; align-items:center; gap:0.5rem; color:#ef4444;">
+                    <i class='bx bx-shield-x'></i> Thu hồi gói Pro
+                </h3>
+                <button class="btn-close" onclick="app.closeRevokeProModal()"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="modal-body" style="display:flex; flex-direction:column; gap:1.25rem;">
+                <div id="revokeProTargetInfo" style="background:var(--bg-color); border-radius:10px; padding:0.875rem 1rem; font-size:0.9rem; color:var(--text-muted);">
+                    <!-- Filled by JS -->
+                </div>
+                <p style="color:var(--text-muted); font-size:0.9rem; line-height:1.55;">
+                    Hành động này sẽ xóa gói Pro của người dùng ngay lập tức. Người dùng sẽ nhận được thông báo kèm lý do.
+                </p>
+                <div class="form-group">
+                    <label style="font-weight:600; margin-bottom:0.4rem; display:block;">Lý do thu hồi <span style="color:#ef4444;">*</span></label>
+                    <textarea id="revokeProReasonInput" rows="4" placeholder="VD: Vi phạm điều khoản sử dụng / Thanh toán không hợp lệ / Yêu cầu hoàn tiền..."
+                        style="width:100%; resize:vertical; padding:0.75rem; border:1px solid var(--border-color); border-radius:8px; background:var(--card-bg); color:var(--text-color); font-size:0.9rem; font-family:inherit; outline:none; line-height:1.5;"></textarea>
+                </div>
+                <div style="display:flex; gap:0.75rem;">
+                    <button class="btn-secondary" style="flex:1;" onclick="app.closeRevokeProModal()">Hủy</button>
+                    <button class="btn-primary" style="flex:2; background:#ef4444; border-color:#ef4444;" onclick="app.confirmRevokePro()">
+                        <i class='bx bx-shield-x'></i> Xác nhận Thu hồi
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Thông báo Pro bị thu hồi (dành cho người dùng) -->
+    <div class="modal-overlay" id="proRevokedModal" style="z-index: 100000;">
+        <div class="modal-card" style="max-width:460px; text-align:center; border:2px solid #ef4444; box-shadow:0 10px 30px rgba(239,68,68,0.15);">
+            <div class="modal-header" style="border-bottom:1px solid var(--border-color); justify-content:center; position:relative;">
+                <h3 style="color:#ef4444; font-size:1.2rem; font-weight:700; display:flex; align-items:center; gap:0.5rem;">
+                    ⚠️ Gói Pro đã bị thu hồi
+                </h3>
+                <button class="btn-close" onclick="app.closeProRevokedModal()" style="position:absolute; right:1rem; top:50%; transform:translateY(-50%);"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="modal-body" style="padding:2rem 1.5rem; display:flex; flex-direction:column; gap:1.25rem; align-items:center;">
+                <div style="width:72px; height:72px; border-radius:50%; background:rgba(239,68,68,0.1); display:flex; align-items:center; justify-content:center; color:#ef4444; font-size:2.5rem;">
+                    <i class='bx bx-shield-x'></i>
+                </div>
+                <div>
+                    <h4 style="font-size:1.1rem; font-weight:700; color:var(--text-main); margin-bottom:0.5rem;">Tài khoản của bạn đã bị xóa gói Pro</h4>
+                    <p style="color:var(--text-muted); font-size:0.9rem; line-height:1.6;">Admin đã thu hồi quyền truy cập Pro. Bạn đã chuyển về gói Free.</p>
+                </div>
+                <div id="proRevokedReasonBox" style="background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.2); border-radius:12px; padding:1.25rem; width:100%; text-align:left; display:none;">
+                    <div style="font-size:0.78rem; font-weight:600; color:#ef4444; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.5rem;">Lý do</div>
+                    <p id="proRevokedReasonText" style="color:var(--text-main); font-size:0.9rem; line-height:1.6; margin:0; white-space:pre-wrap;"></p>
+                </div>
+                <div style="background:var(--bg-color); border-radius:10px; padding:1rem; width:100%; text-align:left; font-size:0.85rem; color:var(--text-muted); line-height:1.55;">
+                    <i class='bx bx-info-circle' style="vertical-align:middle; margin-right:4px;"></i>
+                    Nếu bạn cho rằng đây là nhầm lẫn, hãy liên hệ với Admin để được hỗ trợ.
+                </div>
+                <button class="btn-primary" style="width:100%;" onclick="app.closeProRevokedModal()">Tôi đã hiểu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Admin nhập lý do từ chối -->
+    <div class="modal-overlay" id="rejectReasonModal" style="z-index: 100001;">
+        <div class="modal-card" style="max-width:460px;">
+            <div class="modal-header" style="border-bottom:1px solid var(--border-color);">
+                <h3 style="display:flex; align-items:center; gap:0.5rem; color:#ef4444;">
+                    <i class='bx bx-x-circle'></i> Từ chối Yêu cầu
+                </h3>
+                <button class="btn-close" onclick="app.closeRejectReasonModal()"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="modal-body" style="display:flex; flex-direction:column; gap:1.25rem;">
+                <p style="color:var(--text-muted); font-size:0.9rem; line-height:1.55;">
+                    Vui lòng nhập lý do từ chối để người dùng hiểu và có thể thực hiện lại yêu cầu đúng cách.
+                </p>
+                <div class="form-group">
+                    <label style="font-weight:600; margin-bottom:0.4rem; display:block;">Lý do từ chối <span style="color:#ef4444;">*</span></label>
+                    <textarea id="rejectReasonInput" rows="4" placeholder="VD: Chúng tôi chưa nhận được thanh toán. Vui lòng kiểm tra lại nội dung chuyển khoản và gửi lại yêu cầu."
+                        style="width:100%; resize:vertical; padding:0.75rem; border:1px solid var(--border-color); border-radius:8px; background:var(--card-bg); color:var(--text-color); font-size:0.9rem; font-family:inherit; outline:none; line-height:1.5;"></textarea>
+                </div>
+                <div style="display:flex; gap:0.75rem; margin-top:0.25rem;">
+                    <button class="btn-secondary" style="flex:1;" onclick="app.closeRejectReasonModal()">Hủy</button>
+                    <button class="btn-primary" style="flex:2; background:#ef4444; border-color:#ef4444;" onclick="app.confirmRejectWithReason()">
+                        <i class='bx bx-x-circle'></i> Xác nhận Từ chối
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Thông báo Phê duyệt Pro (dành cho người dùng) -->
+    <div class="modal-overlay" id="proApprovalModal" style="z-index: 100000;">
+        <div class="modal-card" style="max-width:460px; text-align:center; border:2px solid #10b981; box-shadow:0 10px 30px rgba(16,185,129,0.2);">
+            <div class="modal-header" style="border-bottom:1px solid var(--border-color); justify-content:center; position:relative;">
+                <h3 style="color:#10b981; font-size:1.2rem; font-weight:700; display:flex; align-items:center; gap:0.5rem;">
+                    🎉 Yêu cầu đã được phê duyệt!
+                </h3>
+                <button class="btn-close" onclick="app.closeProApprovalModal()" style="position:absolute; right:1rem; top:50%; transform:translateY(-50%);"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="modal-body" style="padding:2rem 1.5rem; display:flex; flex-direction:column; gap:1.25rem; align-items:center;">
+                <div style="width:72px; height:72px; border-radius:50%; background:linear-gradient(135deg,#10b981,#059669); display:flex; align-items:center; justify-content:center; color:white; font-size:2.2rem; box-shadow:0 8px 20px rgba(16,185,129,0.3);">
+                    👑
+                </div>
+                <div>
+                    <h4 style="font-size:1.15rem; font-weight:700; color:var(--text-main); margin-bottom:0.5rem;">Chào mừng bạn lên Pro!</h4>
+                    <p style="color:var(--text-muted); font-size:0.9rem; line-height:1.6;" id="proApprovalMessage">
+                        Tài khoản của bạn đã được nâng cấp thành công.
+                    </p>
+                </div>
+                <div id="proApprovalDetails" style="background:linear-gradient(135deg,rgba(16,185,129,0.08),rgba(5,150,105,0.04)); border:1px solid rgba(16,185,129,0.25); border-radius:14px; padding:1.25rem; width:100%; text-align:left;">
+                    <!-- Filled by JS -->
+                </div>
+                <button class="btn-primary" style="width:100%; background:linear-gradient(135deg,#10b981,#059669); border:none; font-size:1rem; padding:0.75rem;" onclick="app.closeProApprovalModal()">
+                    Bắt đầu trải nghiệm Pro 🚀
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Thông báo Từ chối Pro (dành cho người dùng) -->
+    <div class="modal-overlay" id="proRejectionModal" style="z-index: 100000;">
+        <div class="modal-card" style="max-width:460px; text-align:center; border:2px solid #ef4444; box-shadow:0 10px 30px rgba(239,68,68,0.15);">
+            <div class="modal-header" style="border-bottom:1px solid var(--border-color); justify-content:center; position:relative;">
+                <h3 style="color:#ef4444; font-size:1.2rem; font-weight:700; display:flex; align-items:center; gap:0.5rem;">
+                    ❌ Yêu cầu bị từ chối
+                </h3>
+                <button class="btn-close" onclick="app.closeProRejectionModal()" style="position:absolute; right:1rem; top:50%; transform:translateY(-50%);"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="modal-body" style="padding:2rem 1.5rem; display:flex; flex-direction:column; gap:1.25rem; align-items:center;">
+                <div style="width:72px; height:72px; border-radius:50%; background:rgba(239,68,68,0.1); display:flex; align-items:center; justify-content:center; color:#ef4444; font-size:2.5rem;">
+                    <i class='bx bx-error-circle'></i>
+                </div>
+                <div>
+                    <h4 style="font-size:1.1rem; font-weight:700; color:var(--text-main); margin-bottom:0.5rem;">Rất tiếc, yêu cầu không được duyệt</h4>
+                    <p style="color:var(--text-muted); font-size:0.9rem; line-height:1.6;" id="proRejectionPlanInfo"></p>
+                </div>
+                <div id="proRejectionReasonBox" style="background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.2); border-radius:12px; padding:1.25rem; width:100%; text-align:left; display:none;">
+                    <div style="font-size:0.78rem; font-weight:600; color:#ef4444; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.5rem;">Lý do từ chối</div>
+                    <p id="proRejectionReasonText" style="color:var(--text-main); font-size:0.9rem; line-height:1.6; margin:0; white-space:pre-wrap;"></p>
+                </div>
+                <div style="background:var(--bg-color); border-radius:10px; padding:1rem; width:100%; text-align:left; font-size:0.85rem; color:var(--text-muted); line-height:1.55;">
+                    <i class='bx bx-info-circle' style="vertical-align:middle; margin-right:4px;"></i>
+                    Bạn có thể gửi lại yêu cầu sau khi đã thực hiện đúng các bước thanh toán.
+                </div>
+                <div style="display:flex; gap:0.75rem; width:100%;">
+                    <button class="btn-secondary" style="flex:1;" onclick="app.closeProRejectionModal()">Đóng</button>
+                    <button class="btn-primary" style="flex:2;" onclick="app.closeProRejectionModal(); app.openPlanModal();">
+                        <i class='bx bx-refresh'></i> Gửi lại yêu cầu
+                    </button>
+                </div>
             </div>
         </div>
     </div>

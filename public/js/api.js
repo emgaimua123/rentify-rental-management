@@ -187,5 +187,36 @@ const api = {
             body: JSON.stringify(data)
         });
         return res.json();
+    },
+
+    async markProRequestSeen(id) {
+        const res = await fetch(`/api/pro-requests/${id}/seen`, {
+            method: 'PUT',
+            headers: getAuthHeaders()
+        });
+        return res.json();
+    },
+
+    async revokeProSubscription(userId, reason) {
+        const res = await fetch(`/api/subscriptions/users/${userId}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ reason })
+        });
+        return res.json();
+    },
+
+    async getUserNotifications() {
+        const res = await fetch('/api/notifications', { headers: getAuthHeaders() });
+        if (res.status === 401) window._handleUnauthorized();
+        return res.json();
+    },
+
+    async markNotificationRead(id) {
+        const res = await fetch(`/api/notifications/${id}/read`, {
+            method: 'PUT',
+            headers: getAuthHeaders()
+        });
+        return res.json();
     }
 };

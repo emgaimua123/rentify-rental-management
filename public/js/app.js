@@ -30,7 +30,7 @@ const app = {
         document.getElementById('landingPage').style.display = 'none';
         document.getElementById('appContainer').style.display = 'flex';
         
-        // Theme init (color + dark mode)
+        // Theme init (dark mode)
         const savedTheme = localStorage.getItem('rentify_theme') || 'light';
         if (savedTheme === 'dark') {
             document.documentElement.setAttribute('data-theme', 'dark');
@@ -38,12 +38,7 @@ const app = {
             if (toggle) toggle.checked = true;
         }
 
-        // Color theme init
-        const savedColor = localStorage.getItem('rentify_color') || 'indigo';
-        const savedColorName = localStorage.getItem('rentify_color_name') || 'Indigo';
-        this.applyColor(savedColor, savedColorName);
-
-        // Sync Pro status for the current user (prevents Pro leak between accounts)
+        // Sync Pro status BEFORE applying color (gradient is Pro-only — must know status first)
         try {
             const uStr = localStorage.getItem('rentify_user');
             if (uStr) {
@@ -51,6 +46,11 @@ const app = {
                 if (u.role !== 'ADMIN') await this.syncProStatus(u.id);
             }
         } catch(e) {}
+
+        // Color theme init (syncProStatus above sanitizes gradient for free users)
+        const savedColor = localStorage.getItem('rentify_color') || 'indigo';
+        const savedColorName = localStorage.getItem('rentify_color_name') || 'Indigo';
+        this.applyColor(savedColor, savedColorName);
 
         // Update Pro UI state on load
         this.updateProUI();
@@ -146,8 +146,8 @@ const app = {
             if(el) el.addEventListener('input', () => this.updateMultiRoomPreview());
         });
         
-        // Render charts after init
-        this.renderCharts();
+        // Charts rendered on-demand: when navigating to Overview (switchSection)
+        // and after bills load (renderBills → renderCharts). No premature call here.
     },
 
     switchSection(sectionId) {
@@ -195,6 +195,17 @@ const app = {
         return localStorage.getItem('rentify_pro') === 'true';
     },
 
+    _GRADIENT_COLORS: new Set(['sunset','ocean','aurora','candy','forest','midnight','flame','nebula','sakura','cyber','solar']),
+
+    _sanitizeColor() {
+        const color = localStorage.getItem('rentify_color') || 'indigo';
+        if (this._GRADIENT_COLORS.has(color)) {
+            localStorage.setItem('rentify_color', 'indigo');
+            localStorage.setItem('rentify_color_name', 'Indigo');
+            this.applyColor('indigo', 'Indigo');
+        }
+    },
+
     async syncProStatus(userId) {
         try {
             const res = await api.getSubscription();
@@ -207,6 +218,7 @@ const app = {
             }
         } catch(e) {}
         localStorage.removeItem('rentify_pro');
+        this._sanitizeColor();
     },
 
     isTestUser() {
@@ -1630,6 +1642,7 @@ const app = {
                 localStorage.setItem('rentify_token', data.data.token);
                 localStorage.setItem('rentify_user', JSON.stringify(data.data));
                 localStorage.removeItem('rentify_pro'); // New account always starts without Pro
+                this._sanitizeColor(); // Free account cannot use gradient theme
 
                 // Show profile update notification
                 this.closeAuthModals();
@@ -1675,6 +1688,7 @@ const app = {
             
             // Show notifications
             this.checkNotifications(user.id);
+            this.checkProRequestNotifications();
         } else {
             if (loginBtn) loginBtn.style.display = 'block';
             if (registerBtn) registerBtn.style.display = 'block';
@@ -1704,29 +1718,87 @@ const app = {
             if(data.success) {
                 const search = document.getElementById('adminUserSearch').value.toLowerCase();
                 const users = data.data.filter(u => u.username.toLowerCase().includes(search) || u.name.toLowerCase().includes(search));
-                
+
                 const grid = document.getElementById('adminUsersGrid');
-                grid.innerHTML = users.map(u => `
-                    <div style="background:var(--bg-color); padding:1rem; border-radius:12px; border:1px solid var(--border-color); display:flex; flex-direction:column; gap:0.5rem;">
+                grid.innerHTML = users.map(u => {
+                    const sub = u.subscription;
+                    const hasPro = sub && sub.status === 'active' && new Date(sub.expiresAt) > new Date();
+                    const planLabel = hasPro
+                        ? (sub.plan === '1_year' ? 'Pro Năm' : 'Pro Tháng')
+                        : null;
+                    const expiresLabel = hasPro
+                        ? new Date(sub.expiresAt).toLocaleDateString('vi-VN')
+                        : null;
+                    return `
+                    <div style="background:var(--bg-color); padding:1rem; border-radius:12px; border:1px solid ${hasPro ? 'rgba(245,158,11,0.4)' : 'var(--border-color)'}; display:flex; flex-direction:column; gap:0.5rem;">
                         <div style="display:flex; align-items:center; gap:1rem;">
-                            <img src="${u.avatar}" style="width:40px; height:40px; border-radius:50%;">
-                            <div>
-                                <div style="font-weight:600;">${u.name} ${u.username === 'admin' ? '<span style="color:red; font-size:0.8rem;">(ADMIN)</span>' : ''}</div>
-                                <div style="font-size:0.85rem; color:var(--text-muted);">@${u.username}</div>
+                            <img src="${u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name||'User')}&background=4F46E5&color=fff`}" style="width:40px; height:40px; border-radius:50%; object-fit:cover;">
+                            <div style="flex:1; min-width:0;">
+                                <div style="font-weight:600; display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap;">
+                                    ${u.name}
+                                    ${u.username === 'admin' ? '<span style="color:#ef4444; font-size:0.75rem; font-weight:600;">(ADMIN)</span>' : ''}
+                                    ${hasPro ? `<span style="background:linear-gradient(135deg,#f59e0b,#ec4899); color:#fff; font-size:0.7rem; padding:1px 7px; border-radius:99px; font-weight:600;">👑 ${planLabel}</span>` : ''}
+                                </div>
+                                <div style="font-size:0.82rem; color:var(--text-muted);">@${u.username}</div>
                             </div>
                         </div>
-                        <div style="font-size:0.85rem; margin-top:0.5rem;">
+                        <div style="font-size:0.82rem; color:var(--text-muted);">
                             Thành viên từ: ${new Date(u.createdAt).toLocaleDateString('vi-VN')}
+                            ${hasPro ? `<br><span style="color:#f59e0b;">Pro đến: ${expiresLabel}</span>` : ''}
                         </div>
-                        <div style="display:flex; gap:0.5rem; margin-top:auto; padding-top:1rem;">
-                            <button class="btn-secondary" style="flex:1; padding:0.25rem;" onclick="app.adminSendBanner(${u.id})">Gửi thông báo</button>
+                        <div style="display:flex; gap:0.5rem; margin-top:0.5rem; flex-wrap:wrap;">
+                            <button class="btn-secondary" style="flex:1; padding:0.3rem 0.5rem; font-size:0.82rem;" onclick="app.adminSendBanner(${u.id})"><i class='bx bx-bell'></i> Thông báo</button>
+                            ${hasPro && u.username !== 'admin' ? `<button class="btn-secondary" style="flex:1; padding:0.3rem 0.5rem; font-size:0.82rem; color:#ef4444; border-color:#ef4444;" onclick="app.openRevokeProModal(${u.id}, '${u.name}', '${u.username}')"><i class='bx bx-shield-x'></i> Thu hồi Pro</button>` : ''}
                         </div>
-                    </div>
-                `).join('');
+                    </div>`;
+                }).join('');
             }
         } catch (e) {
             console.error('Admin users error:', e);
         }
+    },
+
+    openRevokeProModal(userId, name, username) {
+        this._pendingRevokeUserId = userId;
+        const input = document.getElementById('revokeProReasonInput');
+        if (input) input.value = '';
+        const info = document.getElementById('revokeProTargetInfo');
+        if (info) info.innerHTML = `Thu hồi Pro của: <strong>${name}</strong> <span style="color:var(--text-muted);">@${username}</span>`;
+        document.getElementById('revokeProModal').classList.add('active');
+    },
+
+    closeRevokeProModal() {
+        document.getElementById('revokeProModal').classList.remove('active');
+        this._pendingRevokeUserId = null;
+    },
+
+    async confirmRevokePro() {
+        const userId = this._pendingRevokeUserId;
+        if (!userId) return;
+        const reason = (document.getElementById('revokeProReasonInput').value || '').trim();
+        if (!reason) {
+            this.showToast('Vui lòng nhập lý do thu hồi!', 'error');
+            return;
+        }
+        try {
+            const res = await api.revokeProSubscription(userId, reason);
+            if (res.success) {
+                this.closeRevokeProModal();
+                this.showToast('Đã thu hồi gói Pro!', 'success');
+                this.renderAdminUsers();
+            } else {
+                this.showToast(res.message || 'Lỗi thu hồi', 'error');
+            }
+        } catch(e) {
+            this.showToast('Lỗi kết nối server', 'error');
+        }
+    },
+
+    closeProRevokedModal() {
+        document.getElementById('proRevokedModal')?.classList.remove('active');
+        localStorage.removeItem('rentify_pro');
+        this._sanitizeColor();
+        this.updateProUI();
     },
 
     async renderAdminRequests() {
@@ -1787,11 +1859,31 @@ const app = {
         }
     },
 
-    async rejectRequest(reqId) {
+    openRejectReasonModal(reqId) {
+        this._pendingRejectId = reqId;
+        const input = document.getElementById('rejectReasonInput');
+        if (input) input.value = '';
+        document.getElementById('rejectReasonModal').classList.add('active');
+    },
+
+    closeRejectReasonModal() {
+        document.getElementById('rejectReasonModal').classList.remove('active');
+        this._pendingRejectId = null;
+    },
+
+    async confirmRejectWithReason() {
+        const reqId = this._pendingRejectId;
+        if (!reqId) return;
+        const reason = (document.getElementById('rejectReasonInput').value || '').trim();
+        if (!reason) {
+            this.showToast('Vui lòng nhập lý do từ chối!', 'error');
+            return;
+        }
         try {
-            const res = await api.updateProRequest(reqId, { status: 'REJECTED' });
+            const res = await api.updateProRequest(reqId, { status: 'REJECTED', rejectionReason: reason });
             if (res.success) {
-                this.showToast('Đã từ chối!', 'success');
+                this.closeRejectReasonModal();
+                this.showToast('Đã từ chối yêu cầu!', 'success');
                 this.renderAdminRequests();
             } else {
                 this.showToast(res.message || 'Lỗi từ chối', 'error');
@@ -1799,6 +1891,10 @@ const app = {
         } catch(e) {
             this.showToast('Lỗi kết nối server', 'error');
         }
+    },
+
+    async rejectRequest(reqId) {
+        this.openRejectReasonModal(reqId);
     },
     
     adminSendBanner(userId) {
@@ -1841,116 +1937,256 @@ const app = {
     closeAdminNotificationModal() {
         document.getElementById('adminNotificationModal')?.classList.remove('active');
     },
+
+    closeProApprovalModal() {
+        document.getElementById('proApprovalModal')?.classList.remove('active');
+        this.syncProStatus().then(() => this.updateProUI());
+    },
+
+    closeProRejectionModal() {
+        document.getElementById('proRejectionModal')?.classList.remove('active');
+    },
+
+    async checkProRequestNotifications() {
+        try {
+            const userStr = localStorage.getItem('rentify_user');
+            if (!userStr) return;
+            const u = JSON.parse(userStr);
+            if (u.role === 'ADMIN' || u.username === 'admin') return;
+
+            // Check server-side notifications (e.g. Pro revoked)
+            try {
+                const nRes = await api.getUserNotifications();
+                if (nRes.success && nRes.data && nRes.data.length > 0) {
+                    for (const notif of nRes.data) {
+                        await api.markNotificationRead(notif.id);
+                        if (notif.type === 'PRO_REVOKED') {
+                            const reasonBox = document.getElementById('proRevokedReasonBox');
+                            const reasonText = document.getElementById('proRevokedReasonText');
+                            if (notif.reason && reasonBox && reasonText) {
+                                reasonText.textContent = notif.reason;
+                                reasonBox.style.display = 'block';
+                            } else if (reasonBox) {
+                                reasonBox.style.display = 'none';
+                            }
+                            localStorage.removeItem('rentify_pro');
+                            this.updateProUI();
+                            document.getElementById('proRevokedModal')?.classList.add('active');
+                            return;
+                        }
+                    }
+                }
+            } catch(e) {}
+
+            const res = await api.getProRequests();
+            if (!res.success || !res.data) return;
+
+            const unread = res.data.filter(r =>
+                (r.status === 'APPROVED' || r.status === 'REJECTED') && !r.seenByUser
+            );
+
+            for (const req of unread) {
+                await api.markProRequestSeen(req.id);
+
+                if (req.status === 'APPROVED') {
+                    const isUpgrade = req.type === 'upgrade_to_yearly' || req.plan === 'upgrade_to_yearly';
+                    const planLabel = isUpgrade
+                        ? 'Nâng cấp lên Gói Năm (12 tháng)'
+                        : req.plan === '1_year' ? 'Gói Pro 1 Năm' : 'Gói Pro 1 Tháng';
+
+                    const msgEl = document.getElementById('proApprovalMessage');
+                    const detailsEl = document.getElementById('proApprovalDetails');
+                    if (msgEl) msgEl.textContent = `Yêu cầu đăng ký ${planLabel} của bạn đã được Admin phê duyệt thành công!`;
+                    if (detailsEl) {
+                        const durationDays = (isUpgrade || req.plan === '1_year') ? 365 : 30;
+                        const expiresAt = new Date();
+                        expiresAt.setDate(expiresAt.getDate() + durationDays);
+                        detailsEl.innerHTML = `
+                            <div style="display:flex; flex-direction:column; gap:0.6rem; font-size:0.88rem;">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <span style="color:var(--text-muted);">Gói đăng ký:</span>
+                                    <strong style="color:#10b981;">${planLabel}</strong>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <span style="color:var(--text-muted);">Thời hạn:</span>
+                                    <strong>${durationDays === 365 ? '12 tháng' : '1 tháng'}</strong>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <span style="color:var(--text-muted);">Hiệu lực đến:</span>
+                                    <strong>${expiresAt.toLocaleDateString('vi-VN', { year:'numeric', month:'long', day:'numeric' })}</strong>
+                                </div>
+                            </div>`;
+                    }
+
+                    localStorage.setItem('rentify_pro', 'true');
+                    this.updateProUI();
+                    document.getElementById('proApprovalModal')?.classList.add('active');
+                    break;
+
+                } else if (req.status === 'REJECTED') {
+                    const isUpgrade = req.type === 'upgrade_to_yearly' || req.plan === 'upgrade_to_yearly';
+                    const planLabel = isUpgrade
+                        ? 'Nâng cấp lên Gói Năm'
+                        : req.plan === '1_year' ? 'Gói Pro 1 Năm' : 'Gói Pro 1 Tháng';
+
+                    const planInfoEl = document.getElementById('proRejectionPlanInfo');
+                    if (planInfoEl) planInfoEl.textContent = `Yêu cầu đăng ký ${planLabel} của bạn không được chấp thuận.`;
+
+                    const reasonBox = document.getElementById('proRejectionReasonBox');
+                    const reasonText = document.getElementById('proRejectionReasonText');
+                    if (req.rejectionReason && reasonBox && reasonText) {
+                        reasonText.textContent = req.rejectionReason;
+                        reasonBox.style.display = 'block';
+                    } else if (reasonBox) {
+                        reasonBox.style.display = 'none';
+                    }
+
+                    document.getElementById('proRejectionModal')?.classList.add('active');
+                    break;
+                }
+            }
+        } catch(e) {}
+    },
     
     // ===== CHART RENDERING =====
+    _replaceCanvas(id) {
+        const old = document.getElementById(id);
+        if (!old || !old.parentElement) return null;
+        const c = document.createElement('canvas');
+        c.id = id;
+        old.parentElement.replaceChild(c, old);
+        return c;
+    },
+
     renderCharts() {
         if (!window.Chart) return;
-        
+
         const typeSelect = document.getElementById('chartTypeSelect');
         const timeframeSelect = document.getElementById('chartTimeframeSelect');
-        if(!typeSelect || !timeframeSelect) return;
-        
+        if (!typeSelect || !timeframeSelect) return;
+
         const type = typeSelect.value || 'bar';
         const timeframe = timeframeSelect.value || 'month';
         const ct = key => (window.i18n ? window.i18n.t(key) : null);
 
-        const bills = (window.billApp && window.billApp.bills) ? window.billApp.bills : [];
+        const bills = (window.billApp && Array.isArray(window.billApp.bills)) ? window.billApp.bills : [];
 
-        // Group bills
+        // Destroy old instances, then replace canvas elements for a clean Chart.js state
+        try { if (this.occupiedRoomsChartInstance) this.occupiedRoomsChartInstance.destroy(); } catch(e) {}
+        try { if (this.revenueChartInstance) this.revenueChartInstance.destroy(); } catch(e) {}
+        this.occupiedRoomsChartInstance = null;
+        this.revenueChartInstance = null;
+
+        const ctxRooms = this._replaceCanvas('occupiedRoomsChart');
+        const ctxRev   = this._replaceCanvas('revenueChart');
+
+        if (!bills.length) {
+            [ctxRooms, ctxRev].forEach(c => {
+                if (!c) return;
+                const w = (c.parentElement ? c.parentElement.clientWidth : 0) || 400;
+                c.width = w; c.height = 220;
+                const ctx2d = c.getContext('2d');
+                if (!ctx2d) return;
+                ctx2d.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text-muted') || '#9ca3af';
+                ctx2d.font = '14px Inter, sans-serif';
+                ctx2d.textAlign = 'center';
+                ctx2d.fillText('Chưa có dữ liệu hóa đơn', w / 2, 110);
+            });
+            return;
+        }
+
+        // Group bills by chosen timeframe
         const groups = {};
-
         bills.forEach(b => {
-            const dateStr = b.dateCreated || b.createdAt || new Date().toISOString();
+            const dateStr = b.dateCreated || b.createdAt;
+            if (!dateStr) return;
             const date = new Date(dateStr);
-            let sortKey = '';
-            let displayKey = '';
+            if (isNaN(date.getTime())) return;
+            let sortKey = '', displayKey = '';
 
             if (timeframe === 'week') {
-                const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
-                const pastDaysOfYear = (date - firstDayOfYear) / 86400000;
-                const weekNum = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
-                sortKey = `${date.getFullYear()}-W${weekNum.toString().padStart(2, '0')}`;
-                displayKey = `${ct('overview.week_prefix') || 'Tuần'} ${weekNum}, ${date.getFullYear()}`;
+                const firstDay = new Date(date.getFullYear(), 0, 1);
+                const weekNum = Math.ceil(((date - firstDay) / 86400000 + firstDay.getDay() + 1) / 7);
+                sortKey    = `${date.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+                displayKey = `${ct('overview.week_prefix') || 'Tuần'} ${weekNum}/${date.getFullYear()}`;
             } else if (timeframe === 'month') {
-                sortKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+                sortKey    = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
                 displayKey = `${ct('overview.month_prefix') || 'Tháng'} ${date.getMonth() + 1}/${date.getFullYear()}`;
             } else if (timeframe === 'quarter') {
-                const q = Math.ceil((date.getMonth() + 1) / 3);
-                sortKey = `${date.getFullYear()}-Q${q}`;
-                displayKey = `${ct('overview.quarter_prefix') || 'Quý'}${q}, ${date.getFullYear()}`;
-            } else if (timeframe === 'year') {
-                sortKey = `${date.getFullYear()}`;
+                const q    = Math.ceil((date.getMonth() + 1) / 3);
+                sortKey    = `${date.getFullYear()}-Q${q}`;
+                displayKey = `${ct('overview.quarter_prefix') || 'Quý'} ${q}/${date.getFullYear()}`;
+            } else {
+                sortKey    = `${date.getFullYear()}`;
                 displayKey = `${date.getFullYear()}`;
             }
-            
-            if (!groups[sortKey]) {
-                groups[sortKey] = { display: displayKey, revenue: 0, roomIds: new Set() };
-            }
-            
-            groups[sortKey].revenue += (b.totalAmount || 0);
+
+            if (!groups[sortKey]) groups[sortKey] = { display: displayKey, revenue: 0, roomIds: new Set() };
+            groups[sortKey].revenue += (typeof b.totalAmount === 'number' ? b.totalAmount : 0);
             if (b.roomId) groups[sortKey].roomIds.add(b.roomId);
         });
-        
-        const sortedKeys = Object.keys(groups).sort();
-        const labels = sortedKeys.map(k => groups[k].display);
-        const revenueData = sortedKeys.map(k => groups[k].revenue);
+
+        const sortedKeys        = Object.keys(groups).sort();
+        const labels            = sortedKeys.map(k => groups[k].display);
+        const revenueData       = sortedKeys.map(k => groups[k].revenue);
         const occupiedRoomsData = sortedKeys.map(k => groups[k].roomIds.size);
-        
-        const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim() || '#4f46e5';
-        
-        // Destroy existing charts if they exist
-        if (this.occupiedRoomsChartInstance) {
-            this.occupiedRoomsChartInstance.destroy();
-        }
-        if (this.revenueChartInstance) {
-            this.revenueChartInstance.destroy();
-        }
-        
-        const ctxRooms = document.getElementById('occupiedRoomsChart');
+        const primaryColor      = getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim() || '#4f46e5';
+
+        const sharedOpts = {
+            responsive: true,
+            maintainAspectRatio: true,
+            animation: { duration: 350 },
+        };
+
         if (ctxRooms) {
             this.occupiedRoomsChartInstance = new Chart(ctxRooms, {
-                type: type,
+                type,
                 data: {
-                    labels: labels,
+                    labels,
                     datasets: [{
                         label: ct('overview.occupied_dataset') || 'Số phòng có khách',
                         data: occupiedRoomsData,
-                        backgroundColor: primaryColor,
+                        backgroundColor: primaryColor + 'bb',
                         borderColor: primaryColor,
-                        borderWidth: 1,
+                        borderWidth: 2,
                         borderRadius: type === 'bar' ? 4 : 0,
-                        tension: 0.3
+                        tension: 0.3,
+                        fill: type === 'line'
                     }]
                 },
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: { beginAtZero: true, ticks: { precision: 0 } }
-                    }
-                }
+                options: { ...sharedOpts, scales: { y: { beginAtZero: true, ticks: { stepSize: 1, precision: 0 } } } }
             });
         }
-        
-        const ctxRev = document.getElementById('revenueChart');
+
         if (ctxRev) {
             this.revenueChartInstance = new Chart(ctxRev, {
-                type: type,
+                type,
                 data: {
-                    labels: labels,
+                    labels,
                     datasets: [{
                         label: ct('overview.revenue_dataset') || 'Doanh thu (VNĐ)',
                         data: revenueData,
-                        backgroundColor: '#10b981',
+                        backgroundColor: '#10b981bb',
                         borderColor: '#10b981',
-                        borderWidth: 1,
+                        borderWidth: 2,
                         borderRadius: type === 'bar' ? 4 : 0,
-                        tension: 0.3
+                        tension: 0.3,
+                        fill: type === 'line'
                     }]
                 },
                 options: {
-                    responsive: true,
+                    ...sharedOpts,
                     scales: {
-                        y: { beginAtZero: true }
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: v => {
+                                    if (v >= 1_000_000) return (v / 1_000_000).toFixed(1) + 'M';
+                                    if (v >= 1_000)     return (v / 1_000).toFixed(0) + 'K';
+                                    return v;
+                                }
+                            }
+                        }
                     }
                 }
             });

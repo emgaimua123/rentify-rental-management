@@ -132,7 +132,11 @@ export const updateProfile = async (req: Request, res: Response) => {
 export const getUsers = async (req: Request, res: Response) => {
   try {
     const users = await prisma.user.findMany({
-      select: { id: true, username: true, name: true, role: true, email: true, createdAt: true, avatar: true },
+      select: {
+        id: true, username: true, name: true, role: true,
+        email: true, createdAt: true, avatar: true,
+        subscription: { select: { plan: true, status: true, expiresAt: true } }
+      },
       orderBy: { createdAt: 'desc' }
     });
     res.status(200).json({ success: true, data: users });

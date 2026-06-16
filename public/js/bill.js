@@ -503,19 +503,44 @@ const billApp = {
             });
 
         Object.entries(groups).forEach(([month, bills]) => {
-            // Month header
+            // Month header (DOM-based to support checkbox)
             const header = document.createElement('div');
             header.style.cssText = 'grid-column: 1/-1; display:flex; align-items:center; gap:0.75rem; margin-top:1.5rem; margin-bottom:0.25rem;';
+
+            const monthChk = document.createElement('input');
+            monthChk.type = 'checkbox';
+            monthChk.dataset.monthCheckbox = month;
+            const allInMonth = bills.every(b => this.selectedBills.has(b.id));
+            const someInMonth = bills.some(b => this.selectedBills.has(b.id));
+            monthChk.checked = allInMonth;
+            monthChk.indeterminate = !allInMonth && someInMonth;
+            monthChk.style.cssText = 'transform:scale(1.2); cursor:pointer; flex-shrink:0;';
+            monthChk.addEventListener('change', (ev) => billApp.toggleMonthSelection(month, ev.target.checked));
+            header.appendChild(monthChk);
+
+            const labelSpan = document.createElement('span');
+            labelSpan.style.cssText = 'font-weight:700; font-size:1rem; color:var(--text-color)';
+            labelSpan.textContent = month;
+            header.appendChild(labelSpan);
+
             const unpaidCount = bills.filter(b => !b.paid).length;
-            const unpaidBadge = unpaidCount > 0
-                ? `<span style="background:var(--danger); color:#fff; font-size:0.7rem; padding:2px 8px; border-radius:99px; font-weight:600">${unpaidCount} ${i18n.t('bill.unpaid')}</span>`
-                : `<span style="background:#10b981; color:#fff; font-size:0.7rem; padding:2px 8px; border-radius:99px; font-weight:600">✔ ${i18n.t('bill.done')}</span>`;
-            header.innerHTML = `
-                <span style="font-weight:700; font-size:1rem; color:var(--text-color)">${month}</span>
-                ${unpaidBadge}
-                <div style="flex:1; height:1px; background:var(--border-color);"></div>
-            `;
+            const badge = document.createElement('span');
+            if (unpaidCount > 0) {
+                badge.style.cssText = 'background:var(--danger); color:#fff; font-size:0.7rem; padding:2px 8px; border-radius:99px; font-weight:600';
+                badge.textContent = `${unpaidCount} ${i18n.t('bill.unpaid')}`;
+            } else {
+                badge.style.cssText = 'background:#10b981; color:#fff; font-size:0.7rem; padding:2px 8px; border-radius:99px; font-weight:600';
+                badge.textContent = `✔ ${i18n.t('bill.done')}`;
+            }
+            header.appendChild(badge);
+
+            const divider = document.createElement('div');
+            divider.style.cssText = 'flex:1; height:1px; background:var(--border-color);';
+            header.appendChild(divider);
+
             grid.appendChild(header);
+
+            const safeMonth = month.replace(/"/g, '&quot;');
 
             // Bill cards
             bills.forEach(bill => {
@@ -532,7 +557,7 @@ const billApp = {
                 card.innerHTML = `
                     <div style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center; background:var(--card-header-bg, rgba(0,0,0,0.04));">
                         <div style="display:flex; align-items:center; gap:0.5rem;" onclick="event.stopPropagation()">
-                            <input type="checkbox" class="bill-checkbox" data-id="${bill.id}" ${isChecked}
+                            <input type="checkbox" class="bill-checkbox" data-id="${bill.id}" data-month="${safeMonth}" ${isChecked}
                                 onchange="billApp.toggleBillSelection(event, ${bill.id})" style="transform:scale(1.2)">
                             <strong>${bill.roomName}</strong>
                         </div>
@@ -586,17 +611,83 @@ const billApp = {
         } else {
             this.selectedBills.delete(id);
         }
+        const month = e.target.dataset.month;
+        if (month) this._syncMonthCheckbox(month);
         this.updateMultiSelectUI();
+    },
+
+    toggleMonthSelection(month, checked) {
+        this.bills.filter(b => b.month === month).forEach(b => {
+            if (checked) this.selectedBills.add(b.id);
+            else this.selectedBills.delete(b.id);
+        });
+        document.querySelectorAll('.bill-checkbox[data-month]').forEach(chk => {
+            if (chk.dataset.month === month) chk.checked = checked;
+        });
+        this.updateMultiSelectUI();
+    },
+
+    _syncMonthCheckbox(month) {
+        const monthBills = this.bills.filter(b => b.month === month);
+        if (!monthBills.length) return;
+        const allChecked = monthBills.every(b => this.selectedBills.has(b.id));
+        const someChecked = monthBills.some(b => this.selectedBills.has(b.id));
+        document.querySelectorAll('[data-month-checkbox]').forEach(chk => {
+            if (chk.dataset.monthCheckbox === month) {
+                chk.checked = allChecked;
+                chk.indeterminate = !allChecked && someChecked;
+            }
+        });
     },
 
     updateMultiSelectUI() {
         const btn = document.getElementById('btnDeleteSelectedBills');
         const countSpan = document.getElementById('selectedBillCount');
+        const btnPaid = document.getElementById('btnMarkSelectedPaid');
+        const paidCountSpan = document.getElementById('selectedPaidCount');
         if (this.selectedBills.size > 0) {
             btn.style.display = 'inline-flex';
             countSpan.innerText = this.selectedBills.size;
+            const unpaidCount = [...this.selectedBills].filter(id => {
+                const b = this.bills.find(x => x.id === id);
+                return b && !b.paid;
+            }).length;
+            if (btnPaid) {
+                btnPaid.style.display = unpaidCount > 0 ? 'inline-flex' : 'none';
+                if (paidCountSpan) paidCountSpan.innerText = unpaidCount;
+            }
         } else {
             btn.style.display = 'none';
+            if (btnPaid) btnPaid.style.display = 'none';
+        }
+    },
+
+    async markSelectedAsPaid() {
+        const unpaidIds = [...this.selectedBills].filter(id => {
+            const b = this.bills.find(x => x.id === id);
+            return b && !b.paid;
+        });
+        if (unpaidIds.length === 0) return;
+        const doMark = async () => {
+            try {
+                await Promise.all(unpaidIds.map(id => api.updateBill(id, { paid: true })));
+                unpaidIds.forEach(id => {
+                    const b = this.bills.find(x => x.id === id);
+                    if (b) b.paid = true;
+                });
+                this.selectedBills.clear();
+                if (window.app && window.app.showToast) window.app.showToast(`Đã đánh dấu ${unpaidIds.length} hóa đơn là Đã thanh toán`, 'success');
+                this.renderBills();
+            } catch (err) {
+                console.error('markSelectedAsPaid error:', err);
+                if (window.app && window.app.showToast) window.app.showToast('Lỗi kết nối server', 'error');
+            }
+        };
+        const msg = `Đánh dấu ${unpaidIds.length} hóa đơn chưa thanh toán thành Đã thanh toán?`;
+        if (window.app && window.app.showConfirmDialog) {
+            window.app.showConfirmDialog(msg, 'Xác nhận thanh toán', doMark);
+        } else {
+            if (confirm(msg)) doMark();
         }
     },
 
@@ -696,22 +787,104 @@ const billApp = {
             window.app.showToast('Xuất PDF chỉ dành cho Pro!', 'error');
             return;
         }
-        const element = document.getElementById('billExportTarget');
+        document.getElementById('exportPDFOptionsModal').classList.add('active');
+    },
+
+    closeExportOptionsModal() {
+        document.getElementById('exportPDFOptionsModal').classList.remove('active');
+    },
+
+    _extractBillAndQr(htmlString) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(`<div>${htmlString}</div>`, 'text/html');
+        let qrSrc = '';
+        const qrImg = doc.querySelector('img[src*="vietqr.io"]') || doc.querySelector('#bpVietQR');
+        if (qrImg) {
+            qrSrc = qrImg.getAttribute('src') || '';
+            const qrSection = qrImg.closest('tr') || qrImg.closest('.qr-section') || qrImg.parentElement;
+            if (qrSection && qrSection !== doc.body) qrSection.remove();
+            else if (qrImg.parentElement) qrImg.remove();
+        }
+        return { billOnlyHtml: doc.querySelector('div').innerHTML, qrSrc };
+    },
+
+    exportPDFBill() {
+        this.closeExportOptionsModal();
         const bill = this.bills.find(x => x.id === this.currentViewBillId);
-        const filename = bill ? `Hoa_Don_${bill.roomName.replace(/\s+/g, '_')}_${new Date(bill.dateCreated).getTime()}.pdf` : 'Hoa_Don.pdf';
+        if (!bill) return;
+        const { billOnlyHtml } = this._extractBillAndQr(bill.html);
+        const filename = `HoaDon_${bill.roomName.replace(/\s+/g, '_')}_${bill.month.replace(/[\/\s]+/g, '_')}.pdf`;
+        const container = document.getElementById('pdfRenderContainer');
+        container.innerHTML = `<div style="padding:20px; font-family:'Inter',sans-serif;">${billOnlyHtml}</div>`;
+        html2pdf().set({
+            margin: [10, 12, 10, 12],
+            filename,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true, allowTaint: false, logging: false },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        }).from(container).save().then(() => {
+            container.innerHTML = '';
+            if (window.app && window.app.showToast) window.app.showToast('Đã xuất hóa đơn PDF!', 'success');
+        });
+    },
 
-        const opt = {
-            margin:       0.5,
-            filename:     filename,
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, allowTaint: false },
-            jsPDF:        { unit: 'in', format: 'a5', orientation: 'portrait' }
-        };
+    exportPDFQR() {
+        this.closeExportOptionsModal();
+        const bill = this.bills.find(x => x.id === this.currentViewBillId);
+        if (!bill) return;
+        const { qrSrc } = this._extractBillAndQr(bill.html);
+        if (!qrSrc) {
+            if (window.app && window.app.showToast) window.app.showToast('Không tìm thấy mã QR cho hóa đơn này!', 'error');
+            return;
+        }
+        const filename = `QR_${bill.roomName.replace(/\s+/g, '_')}_${bill.month.replace(/[\/\s]+/g, '_')}.pdf`;
+        const container = document.getElementById('pdfRenderContainer');
+        container.innerHTML = `
+            <div style="padding:40px 20px; text-align:center; font-family:'Inter',sans-serif;">
+                <h2 style="color:#4f46e5; margin-bottom:8px;">MÃ QR THANH TOÁN</h2>
+                <p style="color:#6b7280; margin-bottom:4px; font-size:14px;">${bill.roomName} — ${bill.month}</p>
+                <p style="color:#6b7280; margin-bottom:24px; font-size:16px; font-weight:600;">Tổng: ${bill.total}</p>
+                <img src="${qrSrc}" style="max-width:320px; width:100%; border:2px solid #e5e7eb; border-radius:12px; padding:12px;" crossorigin="anonymous">
+                <p style="color:#6b7280; margin-top:16px; font-size:12px;">Quét mã để thanh toán qua ngân hàng</p>
+            </div>`;
+        html2pdf().set({
+            margin: [20, 20, 20, 20],
+            filename,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true, allowTaint: false, logging: false },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        }).from(container).save().then(() => {
+            container.innerHTML = '';
+            if (window.app && window.app.showToast) window.app.showToast('Đã xuất mã QR PDF!', 'success');
+        });
+    },
 
-        html2pdf().set(opt).from(element).save().then(() => {
-            if (window.app && window.app.showToast) {
-                window.app.showToast('Đã xuất file PDF thành công!', 'success');
-            }
+    exportPDFBoth() {
+        this.closeExportOptionsModal();
+        const bill = this.bills.find(x => x.id === this.currentViewBillId);
+        if (!bill) return;
+        const { billOnlyHtml, qrSrc } = this._extractBillAndQr(bill.html);
+        const filename = `HoaDon+QR_${bill.roomName.replace(/\s+/g, '_')}_${bill.month.replace(/[\/\s]+/g, '_')}.pdf`;
+        const container = document.getElementById('pdfRenderContainer');
+        const qrPage = qrSrc ? `
+            <div style="page-break-before:always; padding:40px 20px; text-align:center; font-family:'Inter',sans-serif;">
+                <h2 style="color:#4f46e5; margin-bottom:8px;">MÃ QR THANH TOÁN</h2>
+                <p style="color:#6b7280; margin-bottom:4px; font-size:14px;">${bill.roomName} — ${bill.month}</p>
+                <p style="color:#6b7280; margin-bottom:24px; font-size:16px; font-weight:600;">Tổng: ${bill.total}</p>
+                <img src="${qrSrc}" style="max-width:320px; width:100%; border:2px solid #e5e7eb; border-radius:12px; padding:12px;" crossorigin="anonymous">
+                <p style="color:#6b7280; margin-top:16px; font-size:12px;">Quét mã để thanh toán qua ngân hàng</p>
+            </div>` : '';
+        container.innerHTML = `<div style="padding:20px; font-family:'Inter',sans-serif;">${billOnlyHtml}</div>${qrPage}`;
+        html2pdf().set({
+            margin: [10, 12, 10, 12],
+            filename,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true, allowTaint: false, logging: false },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak: { mode: ['css', 'legacy'] }
+        }).from(container).save().then(() => {
+            container.innerHTML = '';
+            if (window.app && window.app.showToast) window.app.showToast('Đã xuất hóa đơn + QR PDF!', 'success');
         });
     },
 

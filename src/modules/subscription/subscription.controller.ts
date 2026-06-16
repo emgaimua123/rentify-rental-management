@@ -134,7 +134,7 @@ export const updateProRequest = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: 'Invalid request id' });
     }
 
-    const { status } = req.body;
+    const { status, rejectionReason } = req.body;
     if (!status) {
       return res.status(400).json({ success: false, message: 'status is required' });
     }
@@ -144,9 +144,14 @@ export const updateProRequest = async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: 'ProRequest not found' });
     }
 
+    const updateData: any = { status, seenByUser: false };
+    if (status === 'REJECTED' && rejectionReason) {
+      updateData.rejectionReason = rejectionReason;
+    }
+
     const updated = await prisma.proRequest.update({
       where: { id: requestId },
-      data: { status }
+      data: updateData
     });
 
     // If approved, create or update subscription
@@ -184,6 +189,110 @@ export const updateProRequest = async (req: Request, res: Response) => {
     return res.json({ success: true, data: updated });
   } catch (error) {
     console.error('updateProRequest error:', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+export const revokeProSubscription = async (req: Request, res: Response) => {
+  try {
+    const admin = (req as any).user;
+    if (admin.role !== 'ADMIN' && admin.username !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
+
+    const targetUserId = parseInt(req.params.userId);
+    if (isNaN(targetUserId)) {
+      return res.status(400).json({ success: false, message: 'Invalid userId' });
+    }
+
+    const { reason } = req.body;
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({ success: false, message: 'Lý do thu hồi là bắt buộc' });
+    }
+
+    const sub = await prisma.subscription.findUnique({ where: { userId: targetUserId } });
+    if (!sub) {
+      return res.status(404).json({ success: false, message: 'Người dùng không có gói Pro' });
+    }
+
+    await prisma.subscription.delete({ where: { userId: targetUserId } });
+
+    await (prisma as any).userNotification.create({
+      data: {
+        userId: targetUserId,
+        type: 'PRO_REVOKED',
+        message: 'Gói Pro của bạn đã bị thu hồi bởi Admin.',
+        reason: reason.trim()
+      }
+    });
+
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('revokeProSubscription error:', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+export const getUserNotifications = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id;
+    const notifs = await (prisma as any).userNotification.findMany({
+      where: { userId, isRead: false },
+      orderBy: { createdAt: 'desc' }
+    });
+    return res.json({ success: true, data: notifs });
+  } catch (error) {
+    console.error('getUserNotifications error:', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+export const markNotificationRead = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id;
+    const notifId = parseInt(req.params.id);
+    if (isNaN(notifId)) {
+      return res.status(400).json({ success: false, message: 'Invalid id' });
+    }
+
+    const notif = await (prisma as any).userNotification.findUnique({ where: { id: notifId } });
+    if (!notif || notif.userId !== userId) {
+      return res.status(404).json({ success: false, message: 'Notification not found' });
+    }
+
+    await (prisma as any).userNotification.update({
+      where: { id: notifId },
+      data: { isRead: true }
+    });
+
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('markNotificationRead error:', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+export const markProRequestSeen = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id;
+    const requestId = parseInt(req.params.id);
+    if (isNaN(requestId)) {
+      return res.status(400).json({ success: false, message: 'Invalid request id' });
+    }
+
+    const existing = await prisma.proRequest.findUnique({ where: { id: requestId } });
+    if (!existing || existing.userId !== userId) {
+      return res.status(404).json({ success: false, message: 'ProRequest not found' });
+    }
+
+    await prisma.proRequest.update({
+      where: { id: requestId },
+      data: { seenByUser: true }
+    });
+
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('markProRequestSeen error:', error);
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 };

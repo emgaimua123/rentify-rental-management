@@ -22,11 +22,12 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  bills        Bill[]
-  presets      PricePreset[]
-  subscription Subscription?
-  proRequests  ProRequest[]
-  rooms        Room[]
+  bills         Bill[]
+  presets       PricePreset[]
+  subscription  Subscription?
+  proRequests   ProRequest[]
+  rooms         Room[]
+  notifications UserNotification[]
 }
 
 model Room {
@@ -159,15 +160,28 @@ model Subscription {
   updatedAt DateTime @updatedAt
 }
 
-model ProRequest {
+model UserNotification {
   id        Int      @id @default(autoincrement())
   userId    Int
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plan      String
-  amount    Float    @default(0)
   type      String
-  status    String   @default("PENDING")
-  username  String?
+  message   String
+  reason    String?
+  isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+}
+
+model ProRequest {
+  id              Int      @id @default(autoincrement())
+  userId          Int
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan            String
+  amount          Float    @default(0)
+  type            String
+  status          String   @default("PENDING")
+  username        String?
+  rejectionReason String?
+  seenByUser      Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }

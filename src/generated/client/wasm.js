@@ -243,6 +243,16 @@ exports.Prisma.SubscriptionScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.UserNotificationScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  type: 'type',
+  message: 'message',
+  reason: 'reason',
+  isRead: 'isRead',
+  createdAt: 'createdAt'
+};
+
 exports.Prisma.ProRequestScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -251,6 +261,8 @@ exports.Prisma.ProRequestScalarFieldEnum = {
   type: 'type',
   status: 'status',
   username: 'username',
+  rejectionReason: 'rejectionReason',
+  seenByUser: 'seenByUser',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -282,6 +294,7 @@ exports.Prisma.ModelName = {
   Bill: 'Bill',
   PricePreset: 'PricePreset',
   Subscription: 'Subscription',
+  UserNotification: 'UserNotification',
   ProRequest: 'ProRequest'
 };
 
