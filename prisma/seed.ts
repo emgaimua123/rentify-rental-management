@@ -2,8 +2,29 @@ import { PrismaClient } from '../src/generated/client';
 
 const prisma = new PrismaClient();
 
-function billHtml(roomName: string, month: string, roomCharge: number, electric: number, water: number, total: number) {
-  return `<div class="bill-paper"><h2 style="text-align:center;color:#4f46e5;">HÓA ĐƠN TIỀN NHÀ</h2><p style="text-align:center;color:#6b7280;">${month}</p><div><strong>Phòng:</strong> ${roomName}</div><table><tbody><tr><td>Tiền phòng</td><td>${roomCharge.toLocaleString('vi-VN')}đ</td></tr><tr><td>Tiền điện</td><td>${electric.toLocaleString('vi-VN')}đ</td></tr><tr><td>Tiền nước</td><td>${water.toLocaleString('vi-VN')}đ</td></tr></tbody><tfoot><tr><td><strong>TỔNG CỘNG</strong></td><td><strong>${total.toLocaleString('vi-VN')}đ</strong></td></tr></tfoot></table></div>`;
+function billHtml(roomName: string, tenant: string, month: string, roomCharge: number, electric: number, water: number, total: number) {
+  const desc = encodeURIComponent(`ThanhToan ${roomName} ${month}`);
+  const qrUrl = `https://img.vietqr.io/image/MB-0123456789-compact.png?amount=${total}&addInfo=${desc}&accountName=NGUYEN+VAN+A`;
+  return `<h2 style="text-align:center;color:#4f46e5;margin-bottom:0.5rem;">HÓA ĐƠN TIỀN NHÀ</h2>
+<p style="text-align:center;color:#6b7280;margin-bottom:1.5rem;font-size:0.875rem;">${month}</p>
+<div style="margin-bottom:1rem;border-bottom:1px dashed #e5e7eb;padding-bottom:1rem;">
+  <div><strong>Phòng:</strong> ${roomName}</div>
+  <div><strong>Người thuê:</strong> ${tenant}</div>
+</div>
+<table style="width:100%;border-collapse:collapse;">
+  <tbody>
+    <tr style="border-bottom:1px solid #e5e7eb;"><td style="padding:0.5rem 0;">Tiền phòng</td><td style="text-align:right;padding:0.5rem 0;">${roomCharge.toLocaleString('vi-VN')}đ</td></tr>
+    <tr style="border-bottom:1px solid #e5e7eb;"><td style="padding:0.5rem 0;">Tiền điện</td><td style="text-align:right;padding:0.5rem 0;">${electric.toLocaleString('vi-VN')}đ</td></tr>
+    <tr style="border-bottom:1px solid #e5e7eb;"><td style="padding:0.5rem 0;">Tiền nước</td><td style="text-align:right;padding:0.5rem 0;">${water.toLocaleString('vi-VN')}đ</td></tr>
+  </tbody>
+  <tfoot>
+    <tr><td style="font-weight:700;font-size:1.125rem;padding-top:0.75rem;">TỔNG CỘNG</td><td style="text-align:right;font-weight:700;font-size:1.25rem;color:#ef4444;padding-top:0.75rem;">${total.toLocaleString('vi-VN')}đ</td></tr>
+  </tfoot>
+</table>
+<div style="margin-top:1.5rem;text-align:center;border-top:1px dashed #e5e7eb;padding-top:1rem;">
+  <p style="font-weight:600;font-size:0.875rem;margin-bottom:0.5rem;color:#6b7280;">Quét mã QR để thanh toán</p>
+  <img src="${qrUrl}" alt="VietQR" style="width:150px;height:150px;display:block;margin:0 auto;border:1px solid #e5e7eb;border-radius:8px;object-fit:contain;" crossorigin="anonymous">
+</div>`;
 }
 
 async function main() {
@@ -70,12 +91,15 @@ async function main() {
 
     // Bills per month
     for (const mo of months) {
-      const exists = await prisma.bill.findFirst({
+      const total = r.price + r.electric + r.water;
+      const html = billHtml(r.name, r.tenant, mo.label, r.price, r.electric, r.water, total);
+      const existing = await prisma.bill.findFirst({
         where: { userId: admin.id, roomName: r.name, month: mo.label },
       });
-      if (exists) continue;
-
-      const total = r.price + r.electric + r.water;
+      if (existing) {
+        await prisma.bill.update({ where: { id: existing.id }, data: { html, totalAmount: total, total: total.toLocaleString('vi-VN') + 'đ' } });
+        continue;
+      }
       await prisma.bill.create({
         data: {
           userId: admin.id,
@@ -85,7 +109,7 @@ async function main() {
           total: total.toLocaleString('vi-VN') + 'đ',
           totalAmount: total,
           paid: mo.date < new Date('2026-05-01'),
-          html: billHtml(r.name, mo.label, r.price, r.electric, r.water, total),
+          html,
           dateCreated: mo.date,
           createdAt:   mo.date,
           updatedAt:   mo.date,
@@ -143,12 +167,15 @@ async function main() {
       }
 
       for (const mo of months) {
-        const exists = await prisma.bill.findFirst({
+        const total = r.price + r.electric + r.water;
+        const html = billHtml(r.name, r.tenant, mo.label, r.price, r.electric, r.water, total);
+        const existing = await prisma.bill.findFirst({
           where: { userId: user1.id, roomName: r.name, month: mo.label },
         });
-        if (exists) continue;
-
-        const total = r.price + r.electric + r.water;
+        if (existing) {
+          await prisma.bill.update({ where: { id: existing.id }, data: { html, totalAmount: total, total: total.toLocaleString('vi-VN') + 'đ' } });
+          continue;
+        }
         await prisma.bill.create({
           data: {
             userId: user1.id,
@@ -158,7 +185,7 @@ async function main() {
             total: total.toLocaleString('vi-VN') + 'đ',
             totalAmount: total,
             paid: mo.date < new Date('2026-04-01'),
-            html: billHtml(r.name, mo.label, r.price, r.electric, r.water, total),
+            html,
             dateCreated: mo.date,
             createdAt:   mo.date,
             updatedAt:   mo.date,

@@ -645,20 +645,29 @@ const billApp = {
         const countSpan = document.getElementById('selectedBillCount');
         const btnPaid = document.getElementById('btnMarkSelectedPaid');
         const paidCountSpan = document.getElementById('selectedPaidCount');
+        const btnUnpaid = document.getElementById('btnMarkSelectedUnpaid');
+        const unpaidCountSpan = document.getElementById('selectedUnpaidCount');
         if (this.selectedBills.size > 0) {
             btn.style.display = 'inline-flex';
             countSpan.innerText = this.selectedBills.size;
-            const unpaidCount = [...this.selectedBills].filter(id => {
+            let unpaidCount = 0, paidCount = 0;
+            [...this.selectedBills].forEach(id => {
                 const b = this.bills.find(x => x.id === id);
-                return b && !b.paid;
-            }).length;
+                if (b && !b.paid) unpaidCount++;
+                if (b && b.paid) paidCount++;
+            });
             if (btnPaid) {
                 btnPaid.style.display = unpaidCount > 0 ? 'inline-flex' : 'none';
                 if (paidCountSpan) paidCountSpan.innerText = unpaidCount;
             }
+            if (btnUnpaid) {
+                btnUnpaid.style.display = paidCount > 0 ? 'inline-flex' : 'none';
+                if (unpaidCountSpan) unpaidCountSpan.innerText = paidCount;
+            }
         } else {
             btn.style.display = 'none';
             if (btnPaid) btnPaid.style.display = 'none';
+            if (btnUnpaid) btnUnpaid.style.display = 'none';
         }
     },
 
@@ -686,6 +695,35 @@ const billApp = {
         const msg = `Đánh dấu ${unpaidIds.length} hóa đơn chưa thanh toán thành Đã thanh toán?`;
         if (window.app && window.app.showConfirmDialog) {
             window.app.showConfirmDialog(msg, 'Xác nhận thanh toán', doMark);
+        } else {
+            if (confirm(msg)) doMark();
+        }
+    },
+
+    async markSelectedAsUnpaid() {
+        const paidIds = [...this.selectedBills].filter(id => {
+            const b = this.bills.find(x => x.id === id);
+            return b && b.paid;
+        });
+        if (paidIds.length === 0) return;
+        const doMark = async () => {
+            try {
+                await Promise.all(paidIds.map(id => api.updateBill(id, { paid: false })));
+                paidIds.forEach(id => {
+                    const b = this.bills.find(x => x.id === id);
+                    if (b) b.paid = false;
+                });
+                this.selectedBills.clear();
+                if (window.app && window.app.showToast) window.app.showToast(`Đã đánh dấu ${paidIds.length} hóa đơn là Chưa thanh toán`, 'success');
+                this.renderBills();
+            } catch (err) {
+                console.error('markSelectedAsUnpaid error:', err);
+                if (window.app && window.app.showToast) window.app.showToast('Lỗi kết nối server', 'error');
+            }
+        };
+        const msg = `Đánh dấu ${paidIds.length} hóa đơn đã thanh toán thành Chưa thanh toán?`;
+        if (window.app && window.app.showConfirmDialog) {
+            window.app.showConfirmDialog(msg, 'Xác nhận', doMark);
         } else {
             if (confirm(msg)) doMark();
         }
@@ -808,22 +846,29 @@ const billApp = {
         return { billOnlyHtml: doc.querySelector('div').innerHTML, qrSrc };
     },
 
+    _makePdfWrapper(innerHtml) {
+        const el = document.createElement('div');
+        el.style.cssText = 'position:fixed;top:0;left:0;width:794px;background:#fff;font-family:"Inter",sans-serif;opacity:0;pointer-events:none;z-index:99999;';
+        el.innerHTML = innerHtml;
+        document.body.appendChild(el);
+        return el;
+    },
+
     exportPDFBill() {
         this.closeExportOptionsModal();
         const bill = this.bills.find(x => x.id === this.currentViewBillId);
         if (!bill) return;
         const { billOnlyHtml } = this._extractBillAndQr(bill.html);
         const filename = `HoaDon_${bill.roomName.replace(/\s+/g, '_')}_${bill.month.replace(/[\/\s]+/g, '_')}.pdf`;
-        const container = document.getElementById('pdfRenderContainer');
-        container.innerHTML = `<div style="padding:20px; font-family:'Inter',sans-serif;">${billOnlyHtml}</div>`;
+        const wrapper = this._makePdfWrapper(`<div style="padding:20px;">${billOnlyHtml}</div>`);
         html2pdf().set({
             margin: [10, 12, 10, 12],
             filename,
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 2, useCORS: true, allowTaint: false, logging: false },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        }).from(container).save().then(() => {
-            container.innerHTML = '';
+        }).from(wrapper).save().then(() => {
+            document.body.removeChild(wrapper);
             if (window.app && window.app.showToast) window.app.showToast('Đã xuất hóa đơn PDF!', 'success');
         });
     },
@@ -838,23 +883,22 @@ const billApp = {
             return;
         }
         const filename = `QR_${bill.roomName.replace(/\s+/g, '_')}_${bill.month.replace(/[\/\s]+/g, '_')}.pdf`;
-        const container = document.getElementById('pdfRenderContainer');
-        container.innerHTML = `
-            <div style="padding:40px 20px; text-align:center; font-family:'Inter',sans-serif;">
+        const wrapper = this._makePdfWrapper(`
+            <div style="padding:40px 20px; text-align:center;">
                 <h2 style="color:#4f46e5; margin-bottom:8px;">MÃ QR THANH TOÁN</h2>
                 <p style="color:#6b7280; margin-bottom:4px; font-size:14px;">${bill.roomName} — ${bill.month}</p>
                 <p style="color:#6b7280; margin-bottom:24px; font-size:16px; font-weight:600;">Tổng: ${bill.total}</p>
                 <img src="${qrSrc}" style="max-width:320px; width:100%; border:2px solid #e5e7eb; border-radius:12px; padding:12px;" crossorigin="anonymous">
                 <p style="color:#6b7280; margin-top:16px; font-size:12px;">Quét mã để thanh toán qua ngân hàng</p>
-            </div>`;
+            </div>`);
         html2pdf().set({
             margin: [20, 20, 20, 20],
             filename,
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 2, useCORS: true, allowTaint: false, logging: false },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        }).from(container).save().then(() => {
-            container.innerHTML = '';
+        }).from(wrapper).save().then(() => {
+            document.body.removeChild(wrapper);
             if (window.app && window.app.showToast) window.app.showToast('Đã xuất mã QR PDF!', 'success');
         });
     },
@@ -865,16 +909,15 @@ const billApp = {
         if (!bill) return;
         const { billOnlyHtml, qrSrc } = this._extractBillAndQr(bill.html);
         const filename = `HoaDon+QR_${bill.roomName.replace(/\s+/g, '_')}_${bill.month.replace(/[\/\s]+/g, '_')}.pdf`;
-        const container = document.getElementById('pdfRenderContainer');
         const qrPage = qrSrc ? `
-            <div style="page-break-before:always; padding:40px 20px; text-align:center; font-family:'Inter',sans-serif;">
+            <div style="page-break-before:always; padding:40px 20px; text-align:center;">
                 <h2 style="color:#4f46e5; margin-bottom:8px;">MÃ QR THANH TOÁN</h2>
                 <p style="color:#6b7280; margin-bottom:4px; font-size:14px;">${bill.roomName} — ${bill.month}</p>
                 <p style="color:#6b7280; margin-bottom:24px; font-size:16px; font-weight:600;">Tổng: ${bill.total}</p>
                 <img src="${qrSrc}" style="max-width:320px; width:100%; border:2px solid #e5e7eb; border-radius:12px; padding:12px;" crossorigin="anonymous">
                 <p style="color:#6b7280; margin-top:16px; font-size:12px;">Quét mã để thanh toán qua ngân hàng</p>
             </div>` : '';
-        container.innerHTML = `<div style="padding:20px; font-family:'Inter',sans-serif;">${billOnlyHtml}</div>${qrPage}`;
+        const wrapper = this._makePdfWrapper(`<div style="padding:20px;">${billOnlyHtml}</div>${qrPage}`);
         html2pdf().set({
             margin: [10, 12, 10, 12],
             filename,
@@ -882,8 +925,8 @@ const billApp = {
             html2canvas: { scale: 2, useCORS: true, allowTaint: false, logging: false },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
             pagebreak: { mode: ['css', 'legacy'] }
-        }).from(container).save().then(() => {
-            container.innerHTML = '';
+        }).from(wrapper).save().then(() => {
+            document.body.removeChild(wrapper);
             if (window.app && window.app.showToast) window.app.showToast('Đã xuất hóa đơn + QR PDF!', 'success');
         });
     },

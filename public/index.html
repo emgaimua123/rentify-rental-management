@@ -446,6 +446,9 @@
                         <button class="btn-primary" id="btnMarkSelectedPaid" style="display:none; background:#10b981; border-color:#10b981;" onclick="billApp.markSelectedAsPaid()">
                             <i class='bx bx-check-circle'></i> Đánh dấu đã TT (<span id="selectedPaidCount">0</span>)
                         </button>
+                        <button class="btn-primary" id="btnMarkSelectedUnpaid" style="display:none; background:#f59e0b; border-color:#f59e0b;" onclick="billApp.markSelectedAsUnpaid()">
+                            <i class='bx bx-minus-circle'></i> Đánh dấu chưa TT (<span id="selectedUnpaidCount">0</span>)
+                        </button>
                         <button class="btn-secondary btn-with-crown" id="btnPresetPrice" onclick="billApp.openPresetModal()" style="position:relative;">
                             <i class='bx bx-slider-alt'></i> <span data-i18n="bill.price_preset_btn">Điều chỉnh giá</span>
                             <span class="btn-crown-badge" id="crownPresetPrice" title="Tính năng Pro">👑</span>

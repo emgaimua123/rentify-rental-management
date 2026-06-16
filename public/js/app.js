@@ -1850,6 +1850,7 @@ const app = {
             if (res.success) {
                 this.showToast('Đã phê duyệt!', 'success');
                 this.renderAdminRequests();
+                this.renderAdminUsers();
             } else {
                 this.showToast(res.message || 'Lỗi phê duyệt', 'error');
             }
