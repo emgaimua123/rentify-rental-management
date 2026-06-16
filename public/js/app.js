@@ -2680,8 +2680,31 @@ const app = {
         
         document.getElementById('editContractStartDate').value = startD;
         document.getElementById('editContractEndDate').value = endD;
+
+        document.getElementById('editContractTenantName').value = contract.tenantName || '';
+        document.getElementById('editContractTenantPhone').value = contract.tenantPhone || '';
+
+        const tenantListContainer = document.getElementById('editContractTenantList');
+        tenantListContainer.innerHTML = '';
+        if (contract.tenantList && Array.isArray(contract.tenantList)) {
+            contract.tenantList.forEach(t => {
+                this.addEditContractTenant(t.name, t.phone);
+            });
+        }
         
-        document.getElementById('editContractDateModal').classList.add('active');
+        document.getElementById('editContractModal').classList.add('active');
+    },
+
+    addEditContractTenant(name = '', phone = '') {
+        const container = document.getElementById('editContractTenantList');
+        const div = document.createElement('div');
+        div.style.cssText = 'display:flex; gap:0.5rem; align-items:center;';
+        div.innerHTML = `
+            <input type="text" class="form-control edit-tenant-name" placeholder="Họ và tên" value="${name}" style="flex:1;">
+            <input type="text" class="form-control edit-tenant-phone" placeholder="Số điện thoại" value="${phone}" style="flex:1;">
+            <button class="btn-danger" style="padding:0.5rem;" onclick="this.parentElement.remove()"><i class='bx bx-trash'></i></button>
+        `;
+        container.appendChild(div);
     },
 
     async saveContractHistoryEdit() {
@@ -2690,12 +2713,23 @@ const app = {
 
         const startDate = document.getElementById('editContractStartDate').value;
         const endDate = document.getElementById('editContractEndDate').value;
+        const tenantName = document.getElementById('editContractTenantName').value.trim();
+        const tenantPhone = document.getElementById('editContractTenantPhone').value.trim();
+
+        const tenantList = [];
+        document.querySelectorAll('#editContractTenantList > div').forEach(div => {
+            const name = div.querySelector('.edit-tenant-name').value.trim();
+            const phone = div.querySelector('.edit-tenant-phone').value.trim();
+            if (name || phone) {
+                tenantList.push({ name, phone });
+            }
+        });
 
         try {
-            const res = await api.updateContract(contractId, { startDate, endDate });
+            const res = await api.updateContract(contractId, { startDate, endDate, tenantName, tenantPhone, tenantList });
             if (res.success) {
                 this.showToast('Cập nhật hợp đồng thành công', 'success');
-                document.getElementById('editContractDateModal').classList.remove('active');
+                document.getElementById('editContractModal').classList.remove('active');
                 document.getElementById('contractDetailModal').classList.remove('active');
                 this.renderContractHistory();
             } else {
