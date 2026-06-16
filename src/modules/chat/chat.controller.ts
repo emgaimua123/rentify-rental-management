@@ -71,9 +71,9 @@ export const sendMessage = async (req: Request, res: Response) => {
     });
 
     return res.status(201).json({ success: true, data: msg });
-  } catch (e) {
+  } catch (e: any) {
     console.error('sendMessage error', e);
-    return res.status(500).json({ success: false, message: 'Server error' });
+    return res.status(500).json({ success: false, message: e.message || 'Server error' });
   }
 };
 
@@ -84,8 +84,8 @@ export const getUnreadCount = async (req: Request, res: Response) => {
       where: { toId: me.id, isRead: false }
     });
     return res.json({ success: true, data: count });
-  } catch (e) {
-    return res.status(500).json({ success: false, message: 'Server error' });
+  } catch (e: any) {
+    return res.status(500).json({ success: false, message: e.message || 'Server error' });
   }
 };
 

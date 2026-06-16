@@ -43,11 +43,13 @@ const room_routes_1 = __importDefault(require("./modules/room/room.routes"));
 const bill_routes_1 = __importDefault(require("./modules/bill/bill.routes"));
 const preset_routes_1 = __importDefault(require("./modules/preset/preset.routes"));
 const subscription_routes_1 = __importDefault(require("./modules/subscription/subscription.routes"));
+const chat_routes_1 = __importDefault(require("./modules/chat/chat.routes"));
 app.use('/api/auth', auth_routes_1.default);
 app.use('/api/rooms', room_routes_1.default);
 app.use('/api/bills', bill_routes_1.default);
 app.use('/api/presets', preset_routes_1.default);
 app.use('/api', subscription_routes_1.default);
+app.use('/api', chat_routes_1.default);
 // Local dev: start server
 if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
     app.listen(port, () => {

@@ -142,7 +142,11 @@ exports.updateProfile = updateProfile;
 const getUsers = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const users = yield prismaClient_1.default.user.findMany({
-            select: { id: true, username: true, name: true, role: true, email: true, createdAt: true, avatar: true },
+            select: {
+                id: true, username: true, name: true, role: true,
+                email: true, createdAt: true, avatar: true,
+                subscription: { select: { plan: true, status: true, expiresAt: true } }
+            },
             orderBy: { createdAt: 'desc' }
         });
         res.status(200).json({ success: true, data: users });
