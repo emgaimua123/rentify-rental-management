@@ -1052,7 +1052,10 @@ const app = {
             }
         }
 
-        this.showToast(`Đã tạo thành công ${successCount} phòng. Lỗi: ${errorCount}`, successCount > 0 ? 'success' : 'error');
+        const toastMsg = errorCount > 0
+            ? `Đã tạo thành công ${successCount} phòng. Lỗi: ${errorCount}`
+            : `Đã tạo thành công ${successCount} phòng.`;
+        this.showToast(toastMsg, successCount > 0 ? 'success' : 'error');
         this.closeModals();
         this.loadRooms();
     },

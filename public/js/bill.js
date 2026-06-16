@@ -853,7 +853,7 @@ const billApp = {
 
     _makePdfWrapper(innerHtml) {
         const el = document.createElement('div');
-        el.style.cssText = 'position:fixed;top:0;left:0;width:794px;background:#fff;font-family:"Inter",sans-serif;opacity:0;pointer-events:none;z-index:99999;';
+        el.style.cssText = 'position:absolute;top:-9999px;left:-9999px;width:794px;background:#fff;font-family:"Inter",sans-serif;z-index:-1;';
         el.innerHTML = innerHtml;
         document.body.appendChild(el);
         return el;
