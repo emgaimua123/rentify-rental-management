@@ -135,7 +135,7 @@ export const getContractHistory = async (req: Request, res: Response) => {
 export const updateContract = async (req: Request, res: Response) => {
   try {
     const contractId = parseInt(req.params.id);
-    const { startDate, endDate } = req.body;
+    const { startDate, endDate, tenantName, tenantPhone, tenantList } = req.body;
     
     if (isNaN(contractId)) {
       return res.status(400).json({ success: false, message: 'Invalid contract ID' });
@@ -145,7 +145,16 @@ export const updateContract = async (req: Request, res: Response) => {
       where: { id: contractId },
       data: {
         ...(startDate && { startDate: new Date(startDate.includes('T') ? startDate : `${startDate}T12:00:00.000Z`) }),
-        ...(endDate && { endDate: new Date(endDate.includes('T') ? endDate : `${endDate}T12:00:00.000Z`) })
+        ...(endDate && { endDate: new Date(endDate.includes('T') ? endDate : `${endDate}T12:00:00.000Z`) }),
+        ...(tenantName && {
+          tenant: {
+            update: {
+              name: tenantName,
+              ...(tenantPhone && { phone: tenantPhone })
+            }
+          }
+        }),
+        ...(tenantList !== undefined && { tenantList: tenantList ? JSON.stringify(tenantList) : null })
       }
     });
 
