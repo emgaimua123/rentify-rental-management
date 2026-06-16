@@ -868,6 +868,12 @@ input:checked + .toggle-slider:before { transform: translateX(18px); }
 .btn-primary:active { transform: scale(0.98); }
 .btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
 
+.btn-secondary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: var(--bg-color);
+}
+
 .btn-secondary {
     background-color: white;
     color: var(--text-main);

@@ -8,6 +8,8 @@ const app = {
     originalRooms: [],
     rooms: [],
     currentSort: 'default',
+    currentPage: 1,
+    itemsPerPage: 12,
     captchaCode: '',
 
     async init() {
@@ -810,6 +812,7 @@ const app = {
                 this.rooms = [...res.data];
                 const searchEl = document.getElementById('roomSearchInput');
                 if (searchEl) searchEl.value = '';
+                this.currentPage = 1;
                 this.applySort();
                 this.renderRooms();
             }
@@ -857,6 +860,7 @@ const app = {
                 r.name.toLowerCase().includes(q)
             );
         }
+        this.currentPage = 1;
         this.applySort();
         this.renderRooms();
     },
@@ -865,7 +869,15 @@ const app = {
         const grid = document.getElementById('roomGrid');
         grid.innerHTML = '';
 
-        this.rooms.forEach(room => {
+        const totalPages = Math.ceil(this.rooms.length / this.itemsPerPage) || 1;
+        if (this.currentPage > totalPages) this.currentPage = totalPages;
+        if (this.currentPage < 1) this.currentPage = 1;
+
+        const startIdx = (this.currentPage - 1) * this.itemsPerPage;
+        const endIdx = startIdx + this.itemsPerPage;
+        const currentRooms = this.rooms.slice(startIdx, endIdx);
+
+        currentRooms.forEach(room => {
             const imgMedia = room.medias && room.medias.find(m => m.type === 'IMAGE');
             const imgSrc = imgMedia ? imgMedia.url : '';
 
@@ -906,7 +918,31 @@ const app = {
             `;
             grid.appendChild(card);
         });
+
+        const pageInfo = document.getElementById('pageInfo');
+        if (pageInfo) pageInfo.innerText = `Trang ${this.currentPage} / ${totalPages}`;
+        
+        const btnPrev = document.getElementById('btnPrevPage');
+        const btnNext = document.getElementById('btnNextPage');
+        if (btnPrev) btnPrev.disabled = this.currentPage <= 1;
+        if (btnNext) btnNext.disabled = this.currentPage >= totalPages;
+
         this.updateSelection();
+    },
+
+    prevPage() {
+        if (this.currentPage > 1) {
+            this.currentPage--;
+            this.renderRooms();
+        }
+    },
+
+    nextPage() {
+        const totalPages = Math.ceil(this.rooms.length / this.itemsPerPage) || 1;
+        if (this.currentPage < totalPages) {
+            this.currentPage++;
+            this.renderRooms();
+        }
     },
 
     openCreateModal() {

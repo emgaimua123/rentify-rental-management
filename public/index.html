@@ -431,6 +431,13 @@
                 <div class="room-grid" id="roomGrid">
                     <!-- Cards will be dynamically injected here by JS -->
                 </div>
+                
+                <!-- Pagination -->
+                <div class="pagination-controls" id="roomPagination" style="display: flex; justify-content: center; align-items: center; gap: 1rem; margin-top: 2rem; padding-bottom: 2rem;">
+                    <button class="btn-secondary" id="btnPrevPage" onclick="app.prevPage()"><i class='bx bx-chevron-left'></i> Trang trước</button>
+                    <span id="pageInfo" style="font-weight: 500; font-size: 0.95rem;">Trang 1 / 1</span>
+                    <button class="btn-secondary" id="btnNextPage" onclick="app.nextPage()">Trang sau <i class='bx bx-chevron-right'></i></button>
+                </div>
             </div>
 
             <div id="appSectionBill" class="app-section" style="display: none;">
