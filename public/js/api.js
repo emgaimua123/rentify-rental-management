@@ -22,7 +22,7 @@ const getAuthHeaders = (extraHeaders = {}) => {
 
 const api = {
     async getRooms() {
-        const res = await fetch(API_URL, { headers: getAuthHeaders() });
+        const res = await fetch(`${API_URL}?limit=1000&t=${Date.now()}`, { headers: getAuthHeaders() });
         if (res.status === 401) window._handleUnauthorized();
         return res.json();
     },
