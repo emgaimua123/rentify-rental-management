@@ -243,6 +243,41 @@ const translations = {
         "bill.qr_scan_label": "Quét mã QR để thanh toán",
         "bill.water_flat": "Khoán / Tự nhập",
 
+        // Common & Pagination
+        "common.add": "Thêm",
+        "common.close": "Đóng",
+        "common.edit": "Sửa",
+        "common.delete": "Xóa",
+        "common.save_changes": "Lưu thay đổi",
+        "common.cancel": "Hủy",
+        "pagination.prev": "Trang trước",
+        "pagination.next": "Trang sau",
+        
+        // Export PDF modal
+        "bill.export_pdf_title": "Chọn nội dung xuất PDF",
+        "bill.export_bill": "Xuất Hóa đơn",
+        "bill.export_bill_desc": "Chỉ nội dung hóa đơn, không kèm mã QR",
+        "bill.export_qr": "Xuất Mã QR",
+        "bill.export_qr_desc": "Chỉ mã QR thanh toán, hiển thị lớn trên A4",
+        "bill.export_both": "Xuất cả hai",
+        "bill.export_both_desc": "Hóa đơn trang 1 · Mã QR trang 2 (2 trang A4)",
+        
+        // Free limit
+        "bill.free_limit": "Bản free là giới hạn tối đa 5 hóa đơn/tháng. Đăng ký PRO để tạo không giới hạn!",
+        "rooms.free_limit": "Bản free là giới hạn tối đa 5 phòng. Đăng ký PRO để tạo không giới hạn!",
+
+        // Contract Edit
+        "contract.edit_title": "Chỉnh sửa Hợp đồng",
+        "contract.start_date": "Ngày Bắt đầu",
+        "contract.end_date": "Ngày Kết thúc",
+        "contract.fullname": "Họ và tên",
+        "contract.phone": "Số điện thoại",
+        "contract.roommates": "Người ở ghép",
+        "contract.update_success": "Cập nhật hợp đồng thành công",
+        "contract.delete_confirm_msg": "Bạn có chắc chắn muốn xóa bản ghi hợp đồng này không?",
+        "contract.delete_confirm_title": "Xóa hợp đồng",
+        "contract.delete_success": "Đã xóa hợp đồng",
+
         // Topbar Search
         "topbar.search_rooms": "Tìm theo tên phòng...",
         "topbar.search_bills": "Tìm theo tên phòng/hóa đơn...",
@@ -519,6 +554,41 @@ const translations = {
         "bill.export_pdf_btn": "Export PDF",
         "bill.qr_scan_label": "Scan QR code to pay",
         "bill.water_flat": "Flat / Manual",
+
+        // Common & Pagination
+        "common.add": "Add",
+        "common.close": "Close",
+        "common.edit": "Edit",
+        "common.delete": "Delete",
+        "common.save_changes": "Save Changes",
+        "common.cancel": "Cancel",
+        "pagination.prev": "Previous",
+        "pagination.next": "Next",
+        
+        // Export PDF modal
+        "bill.export_pdf_title": "Select PDF Export Content",
+        "bill.export_bill": "Export Bill",
+        "bill.export_bill_desc": "Bill content only, without QR code",
+        "bill.export_qr": "Export QR",
+        "bill.export_qr_desc": "Large QR code on A4 paper",
+        "bill.export_both": "Export Both",
+        "bill.export_both_desc": "Bill on page 1 · QR code on page 2 (2 pages A4)",
+        
+        // Free limit
+        "bill.free_limit": "Free plan is limited to 5 bills/month. Upgrade to PRO to create unlimited bills!",
+        "rooms.free_limit": "Free plan is limited to 5 rooms. Upgrade to PRO to create unlimited rooms!",
+
+        // Contract Edit
+        "contract.edit_title": "Edit Contract",
+        "contract.start_date": "Start Date",
+        "contract.end_date": "End Date",
+        "contract.fullname": "Full Name",
+        "contract.phone": "Phone Number",
+        "contract.roommates": "Roommates",
+        "contract.update_success": "Contract updated successfully",
+        "contract.delete_confirm_msg": "Are you sure you want to delete this contract record?",
+        "contract.delete_confirm_title": "Delete Contract",
+        "contract.delete_success": "Contract deleted",
 
         // Topbar Search
         "topbar.search_rooms": "Search by room name...",

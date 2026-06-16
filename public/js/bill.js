@@ -387,7 +387,7 @@ const billApp = {
             }).length;
             if (billsThisMonth >= 5) {
                 window.app.openPlanModal();
-                window.app.showToast('Bản Free tối đa 5 hóa đơn/tháng. Nâng cấp Pro!', 'error');
+                window.app.showToast(window.i18n ? window.i18n.t('bill.free_limit') : 'Bản Free tối đa 5 hóa đơn/tháng. Nâng cấp Pro!', 'error');
                 return;
             }
         }

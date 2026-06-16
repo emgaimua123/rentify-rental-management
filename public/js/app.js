@@ -614,7 +614,7 @@ const app = {
         const count = this.rooms ? this.rooms.length : 0;
         if (count >= 5) {
             this.openPlanModal();
-            this.showToast('Bản Free tối đa 5 phòng. Nâng cấp Pro để không giới hạn!', 'error');
+            this.showToast(window.i18n ? window.i18n.t('rooms.free_limit') : 'Bản Free tối đa 5 phòng. Nâng cấp Pro để không giới hạn!', 'error');
             return false;
         }
         return true;
@@ -631,7 +631,7 @@ const app = {
 
         if (billsThisMonth >= 5) {
             this.openPlanModal();
-            this.showToast('Bản Free tối đa 5 hóa đơn/tháng. Nâng cấp Pro để không giới hạn!', 'error');
+            this.showToast(window.i18n ? window.i18n.t('bill.free_limit') : 'Bản Free tối đa 5 hóa đơn/tháng. Nâng cấp Pro để không giới hạn!', 'error');
             return false;
         }
         return true;
@@ -2739,8 +2739,8 @@ const app = {
         const div = document.createElement('div');
         div.style.cssText = 'display:flex; gap:0.5rem; align-items:center;';
         div.innerHTML = `
-            <input type="text" class="form-control edit-tenant-name" placeholder="Họ và tên" value="${name}" style="flex:1;">
-            <input type="text" class="form-control edit-tenant-phone" placeholder="Số điện thoại" value="${phone}" style="flex:1;">
+            <input type="text" class="form-control edit-tenant-name" placeholder="${window.i18n ? window.i18n.t('contract.fullname') : 'Họ và tên'}" value="${name}" style="flex:1;">
+            <input type="text" class="form-control edit-tenant-phone" placeholder="${window.i18n ? window.i18n.t('contract.phone') : 'Số điện thoại'}" value="${phone}" style="flex:1;">
             <button class="btn-danger" style="padding:0.5rem;" onclick="this.parentElement.remove()"><i class='bx bx-trash'></i></button>
         `;
         container.appendChild(div);
@@ -2767,7 +2767,7 @@ const app = {
         try {
             const res = await api.updateContract(contractId, { startDate, endDate, tenantName, tenantPhone, tenantList });
             if (res.success) {
-                this.showToast('Cập nhật hợp đồng thành công', 'success');
+                this.showToast(window.i18n ? window.i18n.t('contract.update_success') : 'Cập nhật hợp đồng thành công', 'success');
                 document.getElementById('editContractModal').classList.remove('active');
                 document.getElementById('contractDetailModal').classList.remove('active');
                 this.renderContractHistory();
@@ -2783,11 +2783,14 @@ const app = {
         const contractId = this._currentContractHistoryId;
         if (!contractId) return;
 
-        this.showConfirmDialog('Bạn có chắc chắn muốn xóa bản ghi hợp đồng này không?', 'Xóa hợp đồng', async () => {
+        this.showConfirmDialog(
+            window.i18n ? window.i18n.t('contract.delete_confirm_msg') : 'Bạn có chắc chắn muốn xóa bản ghi hợp đồng này không?',
+            window.i18n ? window.i18n.t('contract.delete_confirm_title') : 'Xóa hợp đồng',
+            async () => {
             try {
                 const res = await api.deleteContract(contractId);
                 if (res.success) {
-                    this.showToast('Đã xóa hợp đồng', 'success');
+                    this.showToast(window.i18n ? window.i18n.t('contract.delete_success') : 'Đã xóa hợp đồng', 'success');
                     document.getElementById('contractDetailModal').classList.remove('active');
                     this.renderContractHistory();
                 } else {

@@ -1248,16 +1248,16 @@
     <div class="modal-overlay" id="contractDetailModal" style="z-index: 1050;">
         <div class="modal-card">
             <div class="modal-header">
-                <h3>Chi tiết Hợp đồng</h3>
+                <h3 data-i18n="contract.detail_title">Chi tiết Hợp đồng</h3>
                 <button class="modal-close" onclick="document.getElementById('contractDetailModal').classList.remove('active')"><i class='bx bx-x'></i></button>
             </div>
             <div class="modal-body" id="contractDetailBody" style="line-height: 1.6;">
                 <!-- Content -->
             </div>
             <div class="modal-footer" style="padding: 1rem 1.5rem; display: flex; justify-content: flex-end; gap: 0.5rem; border-top: 1px solid var(--border-color); background: var(--bg-color); border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
-                <button class="btn-secondary" onclick="document.getElementById('contractDetailModal').classList.remove('active')">Đóng</button>
-                <button class="btn-primary" onclick="app.editContractHistory()"><i class='bx bx-edit-alt'></i> Sửa</button>
-                <button class="btn-danger" onclick="app.deleteContractHistory()"><i class='bx bx-trash'></i> Xóa</button>
+                <button class="btn-secondary" onclick="document.getElementById('contractDetailModal').classList.remove('active')" data-i18n="common.close">Đóng</button>
+                <button class="btn-primary" onclick="app.editContractHistory()"><i class='bx bx-edit-alt'></i> <span data-i18n="common.edit">Sửa</span></button>
+                <button class="btn-danger" onclick="app.deleteContractHistory()"><i class='bx bx-trash'></i> <span data-i18n="common.delete">Xóa</span></button>
             </div>
         </div>
     </div>
@@ -1266,40 +1266,40 @@
     <div class="modal-overlay" id="editContractModal" style="z-index: 1060;">
         <div class="modal-card">
             <div class="modal-header">
-                <h3>Chỉnh sửa Hợp đồng</h3>
+                <h3 data-i18n="contract.edit_title">Chỉnh sửa Hợp đồng</h3>
                 <button class="btn-close" onclick="document.getElementById('editContractModal').classList.remove('active')"><i class='bx bx-x'></i></button>
             </div>
             <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                 <div class="form-group">
-                    <label>Ngày Bắt đầu</label>
+                    <label data-i18n="contract.start_date">Ngày Bắt đầu</label>
                     <input type="date" id="editContractStartDate" class="form-control">
                 </div>
                 <div class="form-group" style="margin-top:1rem;">
-                    <label>Ngày Kết thúc</label>
+                    <label data-i18n="contract.end_date">Ngày Kết thúc</label>
                     <input type="date" id="editContractEndDate" class="form-control">
                 </div>
                 
-                <h4 style="margin-top: 1.5rem; margin-bottom: 0.5rem; font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase;">Người đại diện</h4>
+                <h4 style="margin-top: 1.5rem; margin-bottom: 0.5rem; font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase;" data-i18n="contract.tenant_rep">Người đại diện</h4>
                 <div class="form-group">
-                    <label>Họ và tên</label>
-                    <input type="text" id="editContractTenantName" class="form-control" placeholder="Họ và tên">
+                    <label data-i18n="contract.fullname">Họ và tên</label>
+                    <input type="text" id="editContractTenantName" class="form-control" data-i18n="contract.fullname" placeholder="Họ và tên">
                 </div>
                 <div class="form-group" style="margin-top:1rem;">
-                    <label>Số điện thoại</label>
-                    <input type="text" id="editContractTenantPhone" class="form-control" placeholder="Số điện thoại">
+                    <label data-i18n="contract.phone">Số điện thoại</label>
+                    <input type="text" id="editContractTenantPhone" class="form-control" data-i18n="contract.phone" placeholder="Số điện thoại">
                 </div>
 
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; margin-bottom: 0.5rem;">
-                    <h4 style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase;">Người ở ghép</h4>
-                    <button class="btn-secondary" onclick="app.addEditContractTenant()" style="padding: 0.3rem 0.5rem; font-size: 0.8rem;"><i class='bx bx-plus'></i> Thêm</button>
+                    <h4 style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase;" data-i18n="contract.roommates">Người ở ghép</h4>
+                    <button class="btn-secondary" onclick="app.addEditContractTenant()" style="padding: 0.3rem 0.5rem; font-size: 0.8rem;"><i class='bx bx-plus'></i> <span data-i18n="common.add">Thêm</span></button>
                 </div>
                 <div id="editContractTenantList" style="display: flex; flex-direction: column; gap: 0.5rem;">
                     <!-- Dynamic fields -->
                 </div>
 
                 <div style="margin-top: 1.5rem; display: flex; justify-content: flex-end; gap: 0.5rem;">
-                    <button class="btn-secondary" onclick="document.getElementById('editContractModal').classList.remove('active')">Hủy</button>
-                    <button class="btn-primary" onclick="app.saveContractHistoryEdit()">Lưu</button>
+                    <button class="btn-secondary" onclick="document.getElementById('editContractModal').classList.remove('active')" data-i18n="common.cancel">Hủy</button>
+                    <button class="btn-primary" onclick="app.saveContractHistoryEdit()" data-i18n="common.save_changes">Lưu thay đổi</button>
                 </div>
             </div>
         </div>
@@ -1352,22 +1352,22 @@
         <div class="modal-card" style="max-width:480px;">
             <div class="modal-header" style="border-bottom:1px solid var(--border-color);">
                 <h3 style="display:flex; align-items:center; gap:0.5rem;">
-                    <i class='bx bxs-file-pdf' style="color:#ef4444;"></i> Chọn nội dung xuất PDF
+                    <i class='bx bxs-file-pdf' style="color:#ef4444;"></i> <span data-i18n="bill.export_pdf_title">Chọn nội dung xuất PDF</span>
                 </h3>
                 <button class="btn-close" onclick="billApp.closeExportOptionsModal()"><i class='bx bx-x'></i></button>
             </div>
             <div class="modal-body" style="display:flex; flex-direction:column; gap:0.75rem; padding:1.5rem;">
                 <button onclick="billApp.exportPDFBill()" style="display:flex; align-items:center; gap:1rem; padding:1rem 1.25rem; background:var(--bg-color); border:1.5px solid var(--border-color); border-radius:12px; cursor:pointer; text-align:left; transition:all 0.2s; font-family:inherit; color:var(--text-color);" onmouseover="this.style.borderColor='var(--primary-color)'" onmouseout="this.style.borderColor='var(--border-color)'">
                     <div style="width:44px; height:44px; border-radius:10px; background:rgba(79,70,229,0.1); color:var(--primary-color); display:flex; align-items:center; justify-content:center; font-size:1.4rem; flex-shrink:0;"><i class='bx bx-file'></i></div>
-                    <div><div style="font-weight:600; font-size:0.95rem;">Xuất Hóa đơn</div><div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">Chỉ nội dung hóa đơn, không kèm mã QR</div></div>
+                    <div><div style="font-weight:600; font-size:0.95rem;" data-i18n="bill.export_bill">Xuất Hóa đơn</div><div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;" data-i18n="bill.export_bill_desc">Chỉ nội dung hóa đơn, không kèm mã QR</div></div>
                 </button>
                 <button onclick="billApp.exportPDFQR()" style="display:flex; align-items:center; gap:1rem; padding:1rem 1.25rem; background:var(--bg-color); border:1.5px solid var(--border-color); border-radius:12px; cursor:pointer; text-align:left; transition:all 0.2s; font-family:inherit; color:var(--text-color);" onmouseover="this.style.borderColor='#10b981'" onmouseout="this.style.borderColor='var(--border-color)'">
                     <div style="width:44px; height:44px; border-radius:10px; background:rgba(16,185,129,0.1); color:#10b981; display:flex; align-items:center; justify-content:center; font-size:1.4rem; flex-shrink:0;"><i class='bx bx-qr'></i></div>
-                    <div><div style="font-weight:600; font-size:0.95rem;">Xuất Mã QR</div><div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">Chỉ mã QR thanh toán, hiển thị lớn trên A4</div></div>
+                    <div><div style="font-weight:600; font-size:0.95rem;" data-i18n="bill.export_qr">Xuất Mã QR</div><div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;" data-i18n="bill.export_qr_desc">Chỉ mã QR thanh toán, hiển thị lớn trên A4</div></div>
                 </button>
                 <button onclick="billApp.exportPDFBoth()" style="display:flex; align-items:center; gap:1rem; padding:1rem 1.25rem; background:var(--bg-color); border:1.5px solid var(--border-color); border-radius:12px; cursor:pointer; text-align:left; transition:all 0.2s; font-family:inherit; color:var(--text-color);" onmouseover="this.style.borderColor='#f59e0b'" onmouseout="this.style.borderColor='var(--border-color)'">
                     <div style="width:44px; height:44px; border-radius:10px; background:rgba(245,158,11,0.1); color:#f59e0b; display:flex; align-items:center; justify-content:center; font-size:1.4rem; flex-shrink:0;"><i class='bx bx-copy-alt'></i></div>
-                    <div><div style="font-weight:600; font-size:0.95rem;">Xuất cả hai</div><div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">Hóa đơn trang 1 · Mã QR trang 2 (2 trang A4)</div></div>
+                    <div><div style="font-weight:600; font-size:0.95rem;" data-i18n="bill.export_both">Xuất cả hai</div><div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;" data-i18n="bill.export_both_desc">Hóa đơn trang 1 · Mã QR trang 2 (2 trang A4)</div></div>
                 </button>
             </div>
         </div>
