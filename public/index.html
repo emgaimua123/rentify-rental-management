@@ -1128,7 +1128,7 @@
             <div class="modal-header">
                 <h3 style="display:flex; align-items:center; gap:0.6rem;">
                     <i class='bx bxs-crown' style="color:#f59e0b; font-size:1.4rem;"></i>
-                    Quản lý Gói Đăng ký
+                    <span data-i18n="pro.manage_title">Quản lý Gói Đăng ký</span>
                 </h3>
                 <button class="btn-close" onclick="app.closeSubscriptionManageModal()"><i class='bx bx-x'></i></button>
             </div>
@@ -1141,20 +1141,20 @@
                             <i class='bx bxs-crown'></i>
                         </div>
                         <div>
-                            <div style="font-size:0.78rem; color:var(--text-muted); font-weight:500; text-transform:uppercase; letter-spacing:0.05em;">Gói hiện tại</div>
-                            <div id="subPlanName" style="font-size:1.15rem; font-weight:700; background:linear-gradient(135deg,#f59e0b,#ec4899); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">Gói Tháng (99,000 VNĐ)</div>
+                            <div style="font-size:0.78rem; color:var(--text-muted); font-weight:500; text-transform:uppercase; letter-spacing:0.05em;" data-i18n="pro.current_plan">Gói hiện tại</div>
+                            <div id="subPlanName" style="font-size:1.15rem; font-weight:700; background:linear-gradient(135deg,#f59e0b,#ec4899); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;" data-i18n="pro.plan_month">Gói Tháng (99,000 VNĐ)</div>
                         </div>
-                        <div id="subAutoRenewStatus" style="margin-left:auto; padding:0.3rem 0.75rem; border-radius:99px; font-size:0.78rem; font-weight:600; background:rgba(16,185,129,0.12); color:#10b981;">Tự động gia hạn</div>
+                        <div id="subAutoRenewStatus" style="margin-left:auto; padding:0.3rem 0.75rem; border-radius:99px; font-size:0.78rem; font-weight:600; background:rgba(16,185,129,0.12); color:#10b981;" data-i18n="pro.auto_renew">Tự động gia hạn</div>
                     </div>
 
                     <!-- Thông tin hết hạn + countdown -->
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
                         <div style="background:rgba(0,0,0,0.04); border-radius:10px; padding:0.875rem; text-align:center;">
-                            <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.25rem;">Đến ngày</div>
+                            <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.25rem;" data-i18n="pro.until_date">Đến ngày</div>
                             <div id="subExpiresAt" style="font-weight:700; color:var(--text-main); font-size:1rem;">-</div>
                         </div>
                         <div style="background:rgba(0,0,0,0.04); border-radius:10px; padding:0.875rem; text-align:center;">
-                            <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.25rem;">Còn lại</div>
+                            <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.25rem;" data-i18n="pro.days_left">Còn lại</div>
                             <div id="subDaysLeft" style="font-weight:700; font-size:1rem; color:var(--primary-color);">-</div>
                         </div>
                     </div>
@@ -1162,27 +1162,27 @@
 
                 <!-- Tùy chọn quản lý -->
                 <div style="display:flex; flex-direction:column; gap:0.6rem;">
-                    <div style="font-size:0.8rem; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:0.25rem;">Tùy chọn</div>
+                    <div style="font-size:0.8rem; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:0.25rem;" data-i18n="pro.options">Tùy chọn</div>
 
                     <!-- Nâng lên gói năm (chỉ khi đang dùng gói tháng) -->
                     <button class="btn-primary" id="btnSwitchToYearly" style="width:100%; display:none; justify-content:center; align-items:center; gap:0.5rem; background:linear-gradient(135deg,#10b981,#059669); border:none;" onclick="app.switchToYearlyPlan()">
-                        <i class='bx bx-up-arrow-circle'></i> Nâng lên Gói Năm &mdash; Chỉ 849,000 VNĐ (Tiết kiệm ~30%)
+                        <i class='bx bx-up-arrow-circle'></i> <span data-i18n="pro.upgrade_yearly">Nâng lên Gói Năm &mdash; Chỉ 849,000 VNĐ (Tiết kiệm ~30%)</span>
                     </button>
 
                     <!-- Bật/Tắt tự động gia hạn -->
                     <button class="btn-secondary" id="btnToggleAutoRenew" style="width:100%; display:flex; justify-content:center; align-items:center; gap:0.5rem;" onclick="app.toggleAutoRenew()">
-                        <i class='bx bx-refresh'></i> Tắt tự động gia hạn
+                        <i class='bx bx-refresh'></i> <span data-i18n="pro.disable_auto_renew">Tắt tự động gia hạn</span>
                     </button>
 
                     <!-- Hủy đăng ký -->
                     <button class="btn-secondary" id="btnCancelSub" style="width:100%; border-color:#ef4444; color:#ef4444; display:flex; justify-content:center; align-items:center; gap:0.5rem;" onclick="app.cancelSubscription()">
-                        <i class='bx bx-x-circle'></i> Hủy đăng ký (Vẫn dùng được đến hết hạn)
+                        <i class='bx bx-x-circle'></i> <span data-i18n="pro.cancel_sub">Hủy đăng ký (Vẫn dùng được đến hết hạn)</span>
                     </button>
                 </div>
 
                 <div style="font-size:0.78rem; color:var(--text-muted); background:var(--bg-color); border-radius:8px; padding:0.875rem; line-height:1.55;">
                     <i class='bx bx-info-circle' style="vertical-align:middle; margin-right:4px;"></i>
-                    Khi hết hạn mà không gia hạn, tài khoản sẽ tự về bản Free. Dữ liệu vượt quá giới hạn 5 phòng/5 hóa đơn/tháng sẽ tạm thời bị khóa cho đến khi gia hạn.
+                    <span data-i18n="pro.expire_warning">Khi hết hạn mà không gia hạn, tài khoản sẽ tự về bản Free. Dữ liệu vượt quá giới hạn 5 phòng/5 hóa đơn/tháng sẽ tạm thời bị khóa cho đến khi gia hạn.</span>
                 </div>
             </div>
         </div>

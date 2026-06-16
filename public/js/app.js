@@ -430,7 +430,9 @@ const app = {
         const btnCancelSub = document.getElementById('btnCancelSub');
         
         if (subPlanName) {
-            subPlanName.textContent = sub.plan === '1_year' ? 'Gói Năm (849,000 VNĐ)' : 'Gói Tháng (99,000 VNĐ)';
+            subPlanName.textContent = sub.plan === '1_year' 
+                ? (window.i18n ? window.i18n.t('pro.plan_year') : 'Gói Năm') + ' (849,000 VNĐ)' 
+                : (window.i18n ? window.i18n.t('pro.plan_month') : 'Gói Tháng') + ' (99,000 VNĐ)';
             subPlanName.style.background = sub.plan === '1_year' 
                 ? 'linear-gradient(135deg, #10b981, #059669)' 
                 : 'var(--theme-gradient)';
@@ -456,25 +458,25 @@ const app = {
             const diffMs = exp - now;
             const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
             if (diffDays > 0) {
-                subDaysLeft.textContent = diffDays + ' ngày';
+                subDaysLeft.textContent = diffDays + (window.i18n ? window.i18n.t('pro.days_unit') : ' ngày');
                 subDaysLeft.style.color = diffDays <= 7 ? '#ef4444' : diffDays <= 14 ? '#f59e0b' : 'var(--primary-color)';
             } else {
-                subDaysLeft.textContent = 'Đã hết hạn';
+                subDaysLeft.textContent = window.i18n ? window.i18n.t('pro.expired') : 'Đã hết hạn';
                 subDaysLeft.style.color = '#ef4444';
             }
         }
         
         if (subAutoRenewStatus) {
             if (sub.status === 'cancelled') {
-                subAutoRenewStatus.textContent = 'Sắp hết hạn (Đã hủy)';
+                subAutoRenewStatus.textContent = window.i18n ? window.i18n.t('pro.auto_renew_cancelled') : 'Sắp hết hạn (Đã hủy)';
                 subAutoRenewStatus.style.background = 'rgba(239, 68, 68, 0.12)';
                 subAutoRenewStatus.style.color = '#ef4444';
             } else if (sub.autoRenew) {
-                subAutoRenewStatus.textContent = 'Tự động gia hạn';
+                subAutoRenewStatus.textContent = window.i18n ? window.i18n.t('pro.auto_renew') : 'Tự động gia hạn';
                 subAutoRenewStatus.style.background = 'rgba(16, 185, 129, 0.12)';
                 subAutoRenewStatus.style.color = '#10b981';
             } else {
-                subAutoRenewStatus.textContent = 'Không gia hạn';
+                subAutoRenewStatus.textContent = window.i18n ? window.i18n.t('pro.no_auto_renew') : 'Không gia hạn';
                 subAutoRenewStatus.style.background = 'rgba(245, 158, 11, 0.12)';
                 subAutoRenewStatus.style.color = '#f59e0b';
             }
@@ -487,8 +489,8 @@ const app = {
         if (btnToggleAutoRenew) {
             btnToggleAutoRenew.style.display = sub.status !== 'cancelled' ? 'flex' : 'none';
             btnToggleAutoRenew.innerHTML = sub.autoRenew 
-                ? `<i class='bx bx-refresh'></i> Tắt tự động gia hạn`
-                : `<i class='bx bx-refresh'></i> Bật tự động gia hạn`;
+                ? `<i class='bx bx-refresh'></i> <span data-i18n="pro.disable_auto_renew">${window.i18n ? window.i18n.t('pro.disable_auto_renew') : 'Tắt tự động gia hạn'}</span>`
+                : `<i class='bx bx-refresh'></i> <span data-i18n="pro.enable_auto_renew">${window.i18n ? window.i18n.t('pro.enable_auto_renew') : 'Bật tự động gia hạn'}</span>`;
         }
         
         if (btnCancelSub) {
