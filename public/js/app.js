@@ -2429,7 +2429,7 @@ const app = {
                         borderWidth: 2,
                         borderRadius: type === 'bar' ? 4 : 0,
                         tension: 0.3,
-                        fill: type === 'line'
+                        fill: false
                     }]
                 },
                 options: { ...sharedOpts, scales: { y: { beginAtZero: true, ticks: { stepSize: 1, precision: 0 } } } }
@@ -2449,7 +2449,7 @@ const app = {
                         borderWidth: 2,
                         borderRadius: type === 'bar' ? 4 : 0,
                         tension: 0.3,
-                        fill: type === 'line'
+                        fill: false
                     }]
                 },
                 options: {
