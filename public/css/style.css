@@ -1600,7 +1600,7 @@ input:checked + .toggle-slider:before { transform: translateX(18px); }
 /* ===== CHAT BUBBLE ===== */
 #chatBubble {
     position: fixed;
-    bottom: 6.5rem;
+    bottom: 6.5rem; /* default; overridden by JS based on Pro status */
     right: 2rem;
     width: 56px;
     height: 56px;
@@ -1699,7 +1699,7 @@ input:checked + .toggle-slider:before { transform: translateX(18px); }
 .chat-empty { text-align: center; color: var(--text-muted); font-size: 0.875rem; padding: 2rem 1rem; }
 
 @media (max-width: 600px) {
-    #chatBubble { bottom: 5.5rem; right: 1rem; width: 48px; height: 48px; font-size: 1.2rem; }
+    #chatBubble { right: 1rem; width: 48px; height: 48px; font-size: 1.2rem; }
 }
 
 /* ===== PLAN COMPARE MODAL ===== */

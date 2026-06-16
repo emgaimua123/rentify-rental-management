@@ -244,8 +244,10 @@ const app = {
         const loggedIn = !!localStorage.getItem('rentify_token');
         // Bubble — only show for logged-in free users
         const bubble = document.getElementById('proBubble');
+        const chatBubble = document.getElementById('chatBubble');
+        const proBubbleVisible = loggedIn && !pro;
         if (bubble) {
-            if (!loggedIn || pro) {
+            if (!proBubbleVisible) {
                 bubble.style.display = 'none';
             } else {
                 bubble.style.display = 'flex';
@@ -253,6 +255,13 @@ const app = {
                 bubble.textContent = '👑';
                 bubble.title = window.i18n ? window.i18n.t('pro.bubble_title') : 'Nâng cấp Pro';
             }
+        }
+        // Chat bubble sits above Pro bubble for free users; drops to bottom for Pro users
+        if (chatBubble && chatBubble.style.display !== 'none') {
+            const isMobile = window.innerWidth <= 600;
+            chatBubble.style.bottom = proBubbleVisible
+                ? (isMobile ? '5.5rem' : '6.5rem')
+                : (isMobile ? '1rem' : '2rem');
         }
         // Avatar dropdown Pro badge
         const proBadge = document.getElementById('avatarProBadge');
