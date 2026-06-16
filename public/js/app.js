@@ -621,9 +621,15 @@ const app = {
     checkBilllimit() {
         if (this.isPro()) return true;
         const bills = (window.billApp && window.billApp.bills) ? window.billApp.bills : [];
-        if (bills.length >= 5) {
+        const now = new Date();
+        const billsThisMonth = bills.filter(b => {
+            const d = new Date(b.dateCreated);
+            return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        }).length;
+
+        if (billsThisMonth >= 5) {
             this.openPlanModal();
-            this.showToast('Bản Free tối đa 5 hóa đơn. Nâng cấp Pro để không giới hạn!', 'error');
+            this.showToast('Bản Free tối đa 5 hóa đơn/tháng. Nâng cấp Pro để không giới hạn!', 'error');
             return false;
         }
         return true;

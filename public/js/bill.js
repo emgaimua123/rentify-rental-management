@@ -379,10 +379,15 @@ const billApp = {
 
     async saveBill() {
         // Check bill limit for free users
-        if (window.app && !window.app.isPro()) {
-            if (this.bills.length >= 5) {
+        if (window.app && !window.app.isPro() && !this._editingBillId) {
+            const now = new Date();
+            const billsThisMonth = this.bills.filter(b => {
+                const d = new Date(b.dateCreated);
+                return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+            }).length;
+            if (billsThisMonth >= 5) {
                 window.app.openPlanModal();
-                window.app.showToast('Bản Free tối đa 5 hóa đơn. Nâng cấp Pro!', 'error');
+                window.app.showToast('Bản Free tối đa 5 hóa đơn/tháng. Nâng cấp Pro!', 'error');
                 return;
             }
         }
