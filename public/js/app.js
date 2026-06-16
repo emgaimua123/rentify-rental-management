@@ -219,10 +219,11 @@ const app = {
 
     updateProUI() {
         const pro = this.isPro();
-        // Bubble
+        const loggedIn = !!localStorage.getItem('rentify_token');
+        // Bubble — only show for logged-in free users
         const bubble = document.getElementById('proBubble');
         if (bubble) {
-            if (pro) {
+            if (!loggedIn || pro) {
                 bubble.style.display = 'none';
             } else {
                 bubble.style.display = 'flex';
