@@ -22,6 +22,8 @@ const app = {
         if (!localStorage.getItem('rentify_token')) {
             document.getElementById('landingPage').style.display = 'flex';
             document.getElementById('appContainer').style.display = 'none';
+            const bubble = document.getElementById('proBubble');
+            if (bubble) bubble.style.display = 'none';
             if (window.i18n) window.i18n.init();
             return;
         }
