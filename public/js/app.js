@@ -2559,6 +2559,8 @@ const app = {
     },
 
     openContractDetailModal(roomId, contractId) {
+        this._currentContractHistoryId = contractId;
+        this._currentContractRoomId = roomId;
         // Use _contractHistoryData populated by renderContractHistory
         const historyData = this._contractHistoryData || [];
         const roomHistory = historyData.find(h => String(h.id) === String(roomId));
@@ -2659,6 +2661,69 @@ const app = {
         `;
 
         document.getElementById('contractDetailModal').classList.add('active');
+    },
+
+    editContractHistory() {
+        const contractId = this._currentContractHistoryId;
+        const roomId = this._currentContractRoomId;
+        if (!contractId || !roomId) return;
+        
+        const historyData = this._contractHistoryData || [];
+        const roomHistory = historyData.find(h => String(h.id) === String(roomId));
+        if (!roomHistory) return;
+
+        const contract = roomHistory.contracts.find(c => String(c.id) === String(contractId));
+        if (!contract) return;
+
+        const startD = contract.startDate ? new Date(contract.startDate).toISOString().split('T')[0] : '';
+        const endD = contract.endDate ? new Date(contract.endDate).toISOString().split('T')[0] : '';
+        
+        document.getElementById('editContractStartDate').value = startD;
+        document.getElementById('editContractEndDate').value = endD;
+        
+        document.getElementById('editContractDateModal').classList.add('active');
+    },
+
+    async saveContractHistoryEdit() {
+        const contractId = this._currentContractHistoryId;
+        if (!contractId) return;
+
+        const startDate = document.getElementById('editContractStartDate').value;
+        const endDate = document.getElementById('editContractEndDate').value;
+
+        try {
+            const res = await api.updateContract(contractId, { startDate, endDate });
+            if (res.success) {
+                this.showToast('Cập nhật hợp đồng thành công', 'success');
+                document.getElementById('editContractDateModal').classList.remove('active');
+                document.getElementById('contractDetailModal').classList.remove('active');
+                this.renderContractHistory();
+            } else {
+                this.showToast(res.message || 'Lỗi server', 'error');
+            }
+        } catch (err) {
+            this.showToast('Lỗi kết nối', 'error');
+        }
+    },
+
+    deleteContractHistory() {
+        const contractId = this._currentContractHistoryId;
+        if (!contractId) return;
+
+        this.showConfirmDialog('Bạn có chắc chắn muốn xóa bản ghi hợp đồng này không?', 'Xóa hợp đồng', async () => {
+            try {
+                const res = await api.deleteContract(contractId);
+                if (res.success) {
+                    this.showToast('Đã xóa hợp đồng', 'success');
+                    document.getElementById('contractDetailModal').classList.remove('active');
+                    this.renderContractHistory();
+                } else {
+                    this.showToast(res.message || 'Lỗi server', 'error');
+                }
+            } catch (err) {
+                this.showToast('Lỗi kết nối', 'error');
+            }
+        });
     }
 };
 

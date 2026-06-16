@@ -65,6 +65,28 @@ const api = {
         return res.json();
     },
 
+    async getContractHistory() {
+        const res = await fetch(`${API_URL}/rooms/contract-history`, { headers: getAuthHeaders() });
+        return res.json();
+    },
+
+    async updateContract(id, data) {
+        const res = await fetch(`${API_URL}/rooms/contract/${id}`, {
+            method: 'PUT',
+            headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify(data)
+        });
+        return res.json();
+    },
+
+    async deleteContract(id) {
+        const res = await fetch(`${API_URL}/rooms/contract/${id}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
+        return res.json();
+    },
+
     async addVideo(roomId, url) {
         const res = await fetch(`${API_URL}/${roomId}/videos`, {
             method: 'POST',

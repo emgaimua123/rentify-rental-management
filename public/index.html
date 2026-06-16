@@ -1241,11 +1241,40 @@
     <div class="modal-overlay" id="contractDetailModal" style="z-index: 1050;">
         <div class="modal-card">
             <div class="modal-header">
-                <h3>Chi tiết Hợp đồng</h3>
+                <h3 data-i18n="contract.detail_title">Chi tiết Hợp đồng</h3>
                 <button class="modal-close" onclick="document.getElementById('contractDetailModal').classList.remove('active')"><i class='bx bx-x'></i></button>
             </div>
             <div class="modal-body" id="contractDetailBody" style="line-height: 1.6;">
                 <!-- Content -->
+            </div>
+            <div class="modal-footer" style="padding: 1rem 1.5rem; display: flex; justify-content: flex-end; gap: 0.5rem; border-top: 1px solid var(--border-color); background: var(--bg-color); border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
+                <button class="btn-secondary" onclick="document.getElementById('contractDetailModal').classList.remove('active')">Đóng</button>
+                <button class="btn-primary" onclick="app.editContractHistory()" style="background-color: var(--warning-color); border-color: var(--warning-color);"><i class='bx bx-edit-alt'></i> Sửa</button>
+                <button class="btn-danger" onclick="app.deleteContractHistory()"><i class='bx bx-trash'></i> Xóa</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Chỉnh sửa ngày hợp đồng -->
+    <div class="modal-overlay" id="editContractDateModal" style="z-index: 1060;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Sửa Thời gian Hợp đồng</h3>
+                <button class="btn-close" onclick="document.getElementById('editContractDateModal').classList.remove('active')"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Ngày Bắt đầu</label>
+                    <input type="date" id="editContractStartDate" class="form-control">
+                </div>
+                <div class="form-group" style="margin-top:1rem;">
+                    <label>Ngày Kết thúc</label>
+                    <input type="date" id="editContractEndDate" class="form-control">
+                </div>
+                <div style="margin-top: 1.5rem; display: flex; justify-content: flex-end; gap: 0.5rem;">
+                    <button class="btn-secondary" onclick="document.getElementById('editContractDateModal').classList.remove('active')">Hủy</button>
+                    <button class="btn-primary" onclick="app.saveContractHistoryEdit()">Lưu</button>
+                </div>
             </div>
         </div>
     </div>

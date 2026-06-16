@@ -132,6 +132,43 @@ export const getContractHistory = async (req: Request, res: Response) => {
   }
 };
 
+export const updateContract = async (req: Request, res: Response) => {
+  try {
+    const contractId = parseInt(req.params.id);
+    const { startDate, endDate } = req.body;
+    
+    if (isNaN(contractId)) {
+      return res.status(400).json({ success: false, message: 'Invalid contract ID' });
+    }
+
+    const updated = await prisma.contract.update({
+      where: { id: contractId },
+      data: {
+        ...(startDate && { startDate: new Date(startDate.includes('T') ? startDate : `${startDate}T12:00:00.000Z`) }),
+        ...(endDate && { endDate: new Date(endDate.includes('T') ? endDate : `${endDate}T12:00:00.000Z`) })
+      }
+    });
+
+    return res.json({ success: true, data: updated });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const deleteContract = async (req: Request, res: Response) => {
+  try {
+    const contractId = parseInt(req.params.id);
+    if (isNaN(contractId)) {
+      return res.status(400).json({ success: false, message: 'Invalid contract ID' });
+    }
+
+    await prisma.contract.delete({ where: { id: contractId } });
+    return res.json({ success: true, message: 'Contract deleted' });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 export const createRoom = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id;

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import {
   getRooms, getRoomById, createRoom, updateRoom, deleteRoom, bulkGenerateRooms,
-  uploadRoomImage, addRoomVideo, deleteRoomMedia, getContractHistory
+  uploadRoomImage, addRoomVideo, deleteRoomMedia, getContractHistory, updateContract, deleteContract
 } from './room.controller';
 import { uploadImage } from '../../core/middlewares/upload.middleware';
 import { protect } from '../../middlewares/auth.middleware';
@@ -67,6 +67,8 @@ const router = Router();
  */
 router.post('/bulk-generate', protect, bulkGenerateRooms);
 router.get('/contract-history', protect, getContractHistory);
+router.put('/contract/:id', protect, updateContract);
+router.delete('/contract/:id', protect, deleteContract);
 
 /**
  * @swagger
