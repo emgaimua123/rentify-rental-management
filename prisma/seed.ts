@@ -126,21 +126,53 @@ async function main() {
   } else {
     console.log(`Seeding for user1: id=${user1.id}`);
 
+    // Seasonal multipliers — electric peaks in summer, water slightly higher in summer
+    const eM: Record<number,number> = { 1:0.82,2:0.87,3:0.95,4:1.05,5:1.18,6:1.28,7:1.25,8:1.20,9:1.08,10:0.97,11:0.89,12:0.83 };
+    const wM: Record<number,number> = { 1:0.88,2:0.90,3:0.95,4:1.00,5:1.05,6:1.13,7:1.16,8:1.12,9:1.05,10:0.99,11:0.93,12:0.89 };
+    // Small per-room offset so identical months still differ across rooms
+    const eOff = [0, 0.04, -0.03, 0.07, -0.05];
+    const wOff = [0, 0.03, -0.02, 0.05, -0.04];
+
+    const TODAY = new Date('2026-06-17');
+
     const u1rooms = [
-      { name: 'Phòng A1', price: 2_800_000, area: 22, type: 'Studio',    tenant: 'Hoàng Thị Mai',    phone: '0912345001', electric: 280_000, water:  75_000 },
-      { name: 'Phòng A2', price: 3_600_000, area: 28, type: 'Phòng đơn', tenant: 'Võ Thanh Phong',   phone: '0912345002', electric: 350_000, water:  90_000 },
-      { name: 'Phòng B1', price: 4_500_000, area: 32, type: 'Phòng đôi', tenant: 'Ngô Thị Lan',      phone: '0912345003', electric: 430_000, water: 115_000 },
-      { name: 'Phòng B2', price: 3_200_000, area: 25, type: 'Studio',    tenant: 'Đinh Văn Khoa',    phone: '0912345004', electric: 310_000, water:  80_000 },
-      { name: 'Phòng C1', price: 5_500_000, area: 40, type: 'Căn hộ',   tenant: 'Trương Minh Tú',   phone: '0912345005', electric: 520_000, water: 140_000 },
+      // A1: full 18-month contract, still active
+      { name: 'Phòng A1', price: 2_800_000, area: 22, type: 'Studio',
+        tenant: 'Hoàng Thị Mai',  phone: '0912345001',
+        baseE: 280_000, baseW:  75_000, tenantCount: 1,
+        start: new Date('2025-01-01'), end: new Date('2026-06-30') },
+      // A2: started March 2025, still active
+      { name: 'Phòng A2', price: 3_600_000, area: 28, type: 'Phòng đơn',
+        tenant: 'Võ Thanh Phong', phone: '0912345002',
+        baseE: 350_000, baseW:  90_000, tenantCount: 1,
+        start: new Date('2025-03-01'), end: new Date('2026-06-30') },
+      // B1: contract expired Dec 2025, room now available
+      { name: 'Phòng B1', price: 4_500_000, area: 32, type: 'Phòng đôi',
+        tenant: 'Ngô Thị Lan',    phone: '0912345003',
+        baseE: 430_000, baseW: 115_000, tenantCount: 2,
+        start: new Date('2025-01-01'), end: new Date('2025-12-31') },
+      // B2: started May 2025, still active
+      { name: 'Phòng B2', price: 3_200_000, area: 25, type: 'Studio',
+        tenant: 'Đinh Văn Khoa',  phone: '0912345004',
+        baseE: 310_000, baseW:  80_000, tenantCount: 1,
+        start: new Date('2025-05-01'), end: new Date('2026-06-30') },
+      // C1: started Feb 2025, ended March 2026
+      { name: 'Phòng C1', price: 5_500_000, area: 40, type: 'Căn hộ',
+        tenant: 'Trương Minh Tú', phone: '0912345005',
+        baseE: 520_000, baseW: 140_000, tenantCount: 2,
+        start: new Date('2025-02-01'), end: new Date('2026-03-31') },
     ];
 
-    for (const r of u1rooms) {
+    for (let ri = 0; ri < u1rooms.length; ri++) {
+      const r = u1rooms[ri];
+      const isActive = r.end >= TODAY;
+
       let room;
       try {
         room = await prisma.room.upsert({
           where: { userId_name: { userId: user1.id, name: r.name } },
-          create: { userId: user1.id, name: r.name, price: r.price, area: r.area, type: r.type, status: 'Occupied' },
-          update: { status: 'Occupied', price: r.price },
+          create: { userId: user1.id, name: r.name, price: r.price, area: r.area, type: r.type, status: isActive ? 'Occupied' : 'Available' },
+          update: { status: isActive ? 'Occupied' : 'Available', price: r.price },
         });
       } catch (e) {
         console.warn(`user1 Room ${r.name} upsert failed:`, e);
@@ -148,51 +180,43 @@ async function main() {
       }
 
       let tenant = await prisma.tenant.findFirst({ where: { name: r.tenant, phone: r.phone } });
-      if (!tenant) {
-        tenant = await prisma.tenant.create({ data: { name: r.tenant, phone: r.phone } });
+      if (!tenant) tenant = await prisma.tenant.create({ data: { name: r.tenant, phone: r.phone } });
+
+      const existingContract = await prisma.contract.findFirst({ where: { roomId: room.id } });
+      if (!existingContract) {
+        await prisma.contract.create({ data: { roomId: room.id, tenantId: tenant.id, startDate: r.start, endDate: r.end, tenantCount: r.tenantCount, isActive } });
+      } else {
+        await prisma.contract.update({ where: { id: existingContract.id }, data: { startDate: r.start, endDate: r.end, tenantCount: r.tenantCount, isActive } });
       }
 
-      const existing = await prisma.contract.findFirst({ where: { roomId: room.id } });
-      if (!existing) {
-        await prisma.contract.create({
-          data: {
-            roomId: room.id,
-            tenantId: tenant.id,
-            startDate: new Date('2025-01-01'),
-            endDate:   new Date('2026-06-30'),
-            tenantCount: 1,
-            isActive: true,
-          },
-        });
-      }
+      // Only bills within the contract period
+      const contractMonths = months.filter(mo => mo.date >= r.start && mo.date <= r.end);
 
-      for (const mo of months) {
-        const total = r.price + r.electric + r.water;
-        const html = billHtml(r.name, r.tenant, mo.label, r.price, r.electric, r.water, total);
-        const existing = await prisma.bill.findFirst({
-          where: { userId: user1.id, roomName: r.name, month: mo.label },
-        });
-        if (existing) {
-          await prisma.bill.update({ where: { id: existing.id }, data: { html, totalAmount: total, total: total.toLocaleString('vi-VN') + 'đ' } });
-          continue;
+      // Remove any bills outside the contract period (leftovers from previous seed)
+      await prisma.bill.deleteMany({
+        where: { userId: user1.id, roomName: r.name, month: { notIn: contractMonths.map(m => m.label) } },
+      });
+
+      for (const mo of contractMonths) {
+        const mn = mo.date.getMonth() + 1;
+        const electric = Math.round(r.baseE * (eM[mn] + eOff[ri]) / 5_000) * 5_000;
+        const water    = Math.round(r.baseW * (wM[mn] + wOff[ri]) / 5_000) * 5_000;
+        const total    = r.price + electric + water;
+        const html     = billHtml(r.name, r.tenant, mo.label, r.price, electric, water, total);
+        const paid     = mo.date < new Date('2026-04-01');
+
+        const existingBill = await prisma.bill.findFirst({ where: { userId: user1.id, roomName: r.name, month: mo.label } });
+        if (existingBill) {
+          await prisma.bill.update({ where: { id: existingBill.id }, data: { html, totalAmount: total, total: total.toLocaleString('vi-VN') + 'đ', paid } });
+        } else {
+          await prisma.bill.create({ data: {
+            userId: user1.id, roomId: String(room.id), roomName: r.name,
+            month: mo.label, total: total.toLocaleString('vi-VN') + 'đ', totalAmount: total,
+            paid, html, dateCreated: mo.date, createdAt: mo.date, updatedAt: mo.date,
+          }});
         }
-        await prisma.bill.create({
-          data: {
-            userId: user1.id,
-            roomId: String(room.id),
-            roomName: r.name,
-            month: mo.label,
-            total: total.toLocaleString('vi-VN') + 'đ',
-            totalAmount: total,
-            paid: mo.date < new Date('2026-04-01'),
-            html,
-            dateCreated: mo.date,
-            createdAt:   mo.date,
-            updatedAt:   mo.date,
-          },
-        });
       }
-      console.log(`✓ user1 ${r.name}: contract + ${months.length} bills`);
+      console.log(`✓ user1 ${r.name} [${r.start.toISOString().slice(0,7)} → ${r.end.toISOString().slice(0,7)}] status=${isActive?'Occupied':'Available'} ${contractMonths.length} bills`);
     }
   }
 
