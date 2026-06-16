@@ -1039,6 +1039,12 @@
     <!-- Toast Notification Container -->
     <div id="toastContainer" class="toast-container"></div>
 
+    <!-- Chat Bubble -->
+    <button id="chatBubble" onclick="app.openChatModal()" title="Chat với Admin">
+        <i class='bx bx-chat'></i>
+        <span class="chat-unread-badge" id="chatUnreadBadge">0</span>
+    </button>
+
     <!-- Pro Crown Bubble -->
     <button id="proBubble" onclick="app.openPlanModal()" title="Xem gói đăng ký">
         👑
@@ -1459,6 +1465,64 @@
                     <button class="btn-secondary" style="flex:1;" onclick="app.closeProRejectionModal()">Đóng</button>
                     <button class="btn-primary" style="flex:2;" onclick="app.closeProRejectionModal(); app.openPlanModal();">
                         <i class='bx bx-refresh'></i> Gửi lại yêu cầu
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Chat -->
+    <div class="modal-overlay" id="chatModal" style="z-index:99999; align-items:flex-end; justify-content:flex-end; padding:1rem;">
+        <div class="modal-card" id="chatModalCard" style="max-width:420px; width:100%; height:560px; max-height:85vh; display:flex; flex-direction:column; padding:0; overflow:hidden; margin:0;">
+            <!-- Header -->
+            <div class="modal-header" style="padding:0.875rem 1.25rem; border-bottom:1px solid var(--border-color); display:flex; align-items:center; gap:0.75rem; flex-shrink:0;">
+                <button id="chatBackBtn" onclick="app.chatBackToList()" style="display:none; background:none; border:none; cursor:pointer; color:var(--text-muted); padding:0; font-size:1.1rem;"><i class='bx bx-arrow-back'></i></button>
+                <img id="chatPartnerAvatar" src="" style="width:32px; height:32px; border-radius:50%; object-fit:cover; display:none;" alt="">
+                <h3 id="chatModalTitle" style="flex:1; margin:0; font-size:0.95rem;">Tin nhắn</h3>
+                <button class="btn-close" onclick="app.closeChatModal()"><i class='bx bx-x'></i></button>
+            </div>
+            <!-- Admin: conversation list -->
+            <div id="chatConvList" class="chat-conv-list" style="display:none; flex:1; overflow-y:auto;"></div>
+            <!-- Messages area -->
+            <div id="chatMsgArea" class="chat-messages-area" style="display:none; flex:1; overflow-y:auto; padding:1rem; gap:0.5rem;"></div>
+            <!-- Input -->
+            <div id="chatInputRow" class="chat-input-row" style="display:none;">
+                <input type="text" id="chatInput" placeholder="Nhập tin nhắn..." onkeydown="if(event.key==='Enter') app.sendChatMessage()">
+                <button onclick="app.sendChatMessage()"><i class='bx bx-send'></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Admin cấp Pro -->
+    <div class="modal-overlay" id="grantProModal" style="z-index:100002;">
+        <div class="modal-card" style="max-width:400px;">
+            <div class="modal-header" style="border-bottom:1px solid var(--border-color);">
+                <h3 style="display:flex; align-items:center; gap:0.5rem; color:#10b981;"><i class='bx bx-crown'></i> Cấp gói Pro</h3>
+                <button class="btn-close" onclick="app.closeGrantProModal()"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="modal-body" style="display:flex; flex-direction:column; gap:1.25rem;">
+                <div id="grantProTargetInfo" style="background:var(--bg-color); border-radius:10px; padding:0.875rem 1rem; font-size:0.9rem; color:var(--text-muted);"></div>
+                <div class="form-group">
+                    <label style="font-weight:600; margin-bottom:0.5rem; display:block;">Chọn gói</label>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                        <label style="display:flex; flex-direction:column; align-items:center; gap:0.4rem; padding:1rem; border:2px solid var(--border-color); border-radius:10px; cursor:pointer; transition:border-color 0.15s;" id="grantPlanMonth">
+                            <input type="radio" name="grantPlan" value="1_month" style="display:none;" onchange="app.selectGrantPlan(this)">
+                            <span style="font-size:1.5rem;">📅</span>
+                            <strong>1 Tháng</strong>
+                            <span style="font-size:0.8rem; color:var(--text-muted);">99.000đ</span>
+                        </label>
+                        <label style="display:flex; flex-direction:column; align-items:center; gap:0.4rem; padding:1rem; border:2px solid var(--border-color); border-radius:10px; cursor:pointer; transition:border-color 0.15s;" id="grantPlanYear">
+                            <input type="radio" name="grantPlan" value="1_year" style="display:none;" onchange="app.selectGrantPlan(this)">
+                            <span style="font-size:1.5rem;">🗓️</span>
+                            <strong>1 Năm</strong>
+                            <span style="font-size:0.8rem; color:var(--text-muted);">849.000đ</span>
+                        </label>
+                    </div>
+                </div>
+                <div style="display:flex; gap:0.75rem;">
+                    <button class="btn-secondary" style="flex:1;" onclick="app.closeGrantProModal()">Hủy</button>
+                    <button class="btn-primary" style="flex:2; background:#10b981; border-color:#10b981;" onclick="app.confirmGrantPro()">
+                        <i class='bx bx-crown'></i> Xác nhận Cấp Pro
                     </button>
                 </div>
             </div>

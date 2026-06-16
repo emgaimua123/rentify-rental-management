@@ -114,6 +114,13 @@ const app = {
         });
 
         this.updateGreeting();
+
+        // Show chat bubble + start unread polling
+        const chatBubble = document.getElementById('chatBubble');
+        if (chatBubble) chatBubble.style.display = 'flex';
+        this._updateChatUnreadBadge();
+        setInterval(() => this._updateChatUnreadBadge(), 30000);
+
         await this.loadRooms();
 
         // Event listener cho dropdown Trạng thái phòng
@@ -1747,6 +1754,7 @@ const app = {
                         </div>
                         <div style="display:flex; gap:0.5rem; margin-top:0.5rem; flex-wrap:wrap;">
                             <button class="btn-secondary" style="flex:1; padding:0.3rem 0.5rem; font-size:0.82rem;" onclick="app.adminSendBanner(${u.id})"><i class='bx bx-bell'></i> Thông báo</button>
+                            ${u.username !== 'admin' && !hasPro ? `<button class="btn-secondary" style="flex:1; padding:0.3rem 0.5rem; font-size:0.82rem; color:#10b981; border-color:#10b981;" onclick="app.openGrantProModal(${u.id}, '${u.name}', '${u.username}')"><i class='bx bx-crown'></i> Cấp Pro</button>` : ''}
                             ${hasPro && u.username !== 'admin' ? `<button class="btn-secondary" style="flex:1; padding:0.3rem 0.5rem; font-size:0.82rem; color:#ef4444; border-color:#ef4444;" onclick="app.openRevokeProModal(${u.id}, '${u.name}', '${u.username}')"><i class='bx bx-shield-x'></i> Thu hồi Pro</button>` : ''}
                         </div>
                     </div>`;
@@ -2048,6 +2056,207 @@ const app = {
         } catch(e) {}
     },
     
+    // ===== GRANT PRO (ADMIN) =====
+    openGrantProModal(userId, name, username) {
+        this._pendingGrantUserId = userId;
+        this._selectedGrantPlan = null;
+        document.querySelectorAll('input[name="grantPlan"]').forEach(r => r.checked = false);
+        document.querySelectorAll('#grantProModal label[id^="grantPlan"]').forEach(l => {
+            l.style.borderColor = 'var(--border-color)';
+        });
+        const info = document.getElementById('grantProTargetInfo');
+        if (info) info.innerHTML = `Cấp Pro cho: <strong>${name}</strong> <span style="color:var(--text-muted);">@${username}</span>`;
+        document.getElementById('grantProModal').classList.add('active');
+    },
+
+    closeGrantProModal() {
+        document.getElementById('grantProModal').classList.remove('active');
+        this._pendingGrantUserId = null;
+        this._selectedGrantPlan = null;
+    },
+
+    selectGrantPlan(radio) {
+        this._selectedGrantPlan = radio.value;
+        document.querySelectorAll('#grantProModal label[id^="grantPlan"]').forEach(l => {
+            l.style.borderColor = 'var(--border-color)';
+        });
+        const labelId = radio.value === '1_year' ? 'grantPlanYear' : 'grantPlanMonth';
+        document.getElementById(labelId).style.borderColor = '#10b981';
+    },
+
+    async confirmGrantPro() {
+        const userId = this._pendingGrantUserId;
+        const plan = this._selectedGrantPlan;
+        if (!userId) return;
+        if (!plan) { this.showToast('Vui lòng chọn gói Pro!', 'error'); return; }
+        try {
+            const res = await api.grantProSubscription(userId, plan);
+            if (res.success) {
+                this.closeGrantProModal();
+                this.showToast('Đã cấp Pro thành công!', 'success');
+                this.renderAdminUsers();
+            } else {
+                this.showToast(res.message || 'Lỗi cấp Pro', 'error');
+            }
+        } catch(e) {
+            this.showToast('Lỗi kết nối server', 'error');
+        }
+    },
+
+    // ===== CHAT =====
+    _chatCurrentPartnerId: null,
+    _chatPollTimer: null,
+
+    async openChatModal() {
+        const modal = document.getElementById('chatModal');
+        modal.classList.add('active');
+        const userStr = localStorage.getItem('rentify_user');
+        if (!userStr) return;
+        const me = JSON.parse(userStr);
+        const isAdmin = me.role === 'ADMIN' || me.username === 'admin';
+
+        if (isAdmin) {
+            await this._loadChatConversations();
+        } else {
+            document.getElementById('chatModalTitle').textContent = 'Chat với Admin';
+            await this._openChatThread(null);
+        }
+        this._startChatPoll();
+    },
+
+    closeChatModal() {
+        document.getElementById('chatModal').classList.remove('active');
+        this._stopChatPoll();
+        this._chatCurrentPartnerId = null;
+    },
+
+    async _loadChatConversations() {
+        document.getElementById('chatModalTitle').textContent = 'Tin nhắn';
+        document.getElementById('chatBackBtn').style.display = 'none';
+        document.getElementById('chatPartnerAvatar').style.display = 'none';
+        document.getElementById('chatConvList').style.display = 'flex';
+        document.getElementById('chatConvList').style.flexDirection = 'column';
+        document.getElementById('chatMsgArea').style.display = 'none';
+        document.getElementById('chatInputRow').style.display = 'none';
+        this._chatCurrentPartnerId = null;
+
+        try {
+            const res = await api.getChatConversations();
+            const list = document.getElementById('chatConvList');
+            if (!res.success || !res.data.length) {
+                list.innerHTML = '<div class="chat-empty">Chưa có cuộc hội thoại nào.</div>';
+                return;
+            }
+            list.innerHTML = res.data.map(c => `
+                <div class="chat-conv-item" onclick="app._openChatThread(${c.id})">
+                    <img src="${c.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.name||'U')}&background=4F46E5&color=fff`}" alt="">
+                    <div class="conv-info">
+                        <div class="conv-name">${c.name} <span style="color:var(--text-muted); font-weight:400; font-size:0.78rem;">@${c.username}</span></div>
+                        <div class="conv-last">${c.lastMessage || ''}</div>
+                    </div>
+                    ${c.unread > 0 ? `<span class="chat-conv-badge">${c.unread}</span>` : ''}
+                </div>`).join('');
+        } catch(e) {
+            document.getElementById('chatConvList').innerHTML = '<div class="chat-empty">Lỗi kết nối.</div>';
+        }
+    },
+
+    async _openChatThread(partnerId) {
+        this._chatCurrentPartnerId = partnerId;
+        const userStr = localStorage.getItem('rentify_user');
+        const me = JSON.parse(userStr || '{}');
+        const isAdmin = me.role === 'ADMIN' || me.username === 'admin';
+
+        document.getElementById('chatConvList').style.display = 'none';
+        document.getElementById('chatMsgArea').style.display = 'flex';
+        document.getElementById('chatMsgArea').style.flexDirection = 'column';
+        document.getElementById('chatInputRow').style.display = 'flex';
+        document.getElementById('chatBackBtn').style.display = isAdmin ? 'block' : 'none';
+
+        if (isAdmin && partnerId) {
+            try {
+                const users = await fetch('/api/auth/users', { headers: { 'Authorization': `Bearer ${localStorage.getItem('rentify_token')}` } }).then(r => r.json());
+                const partner = (users.data || []).find(u => u.id === partnerId);
+                if (partner) {
+                    document.getElementById('chatModalTitle').textContent = partner.name;
+                    const av = document.getElementById('chatPartnerAvatar');
+                    av.src = partner.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(partner.name||'U')}&background=4F46E5&color=fff`;
+                    av.style.display = 'block';
+                }
+            } catch(e) {}
+        }
+
+        await this._loadChatMessages();
+    },
+
+    async _loadChatMessages() {
+        const partnerId = this._chatCurrentPartnerId;
+        const userStr = localStorage.getItem('rentify_user');
+        const me = JSON.parse(userStr || '{}');
+        try {
+            const res = await api.getChatMessages(partnerId);
+            if (!res.success) return;
+            const area = document.getElementById('chatMsgArea');
+            if (!res.data.length) {
+                area.innerHTML = '<div class="chat-empty">Hãy gửi tin nhắn để bắt đầu cuộc trò chuyện.</div>';
+                return;
+            }
+            const fmt = d => new Date(d).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+            area.innerHTML = res.data.map(m => {
+                const isMine = m.fromId === me.id;
+                return `<div class="chat-msg${isMine ? ' me' : ''}" style="display:flex; gap:0.5rem; align-items:flex-end; max-width:80%; ${isMine ? 'align-self:flex-end; flex-direction:row-reverse;' : ''}">
+                    <div class="bubble">${m.message.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+                    <time>${fmt(m.createdAt)}</time>
+                </div>`;
+            }).join('');
+            area.scrollTop = area.scrollHeight;
+        } catch(e) {}
+        this._updateChatUnreadBadge();
+    },
+
+    async sendChatMessage() {
+        const input = document.getElementById('chatInput');
+        const msg = (input.value || '').trim();
+        if (!msg) return;
+        input.value = '';
+        try {
+            await api.sendChatMessage(msg, this._chatCurrentPartnerId);
+            await this._loadChatMessages();
+        } catch(e) {
+            this.showToast('Lỗi gửi tin nhắn', 'error');
+        }
+    },
+
+    chatBackToList() {
+        this._loadChatConversations();
+    },
+
+    _startChatPoll() {
+        this._stopChatPoll();
+        this._chatPollTimer = setInterval(async () => {
+            const modal = document.getElementById('chatModal');
+            if (!modal || !modal.classList.contains('active')) { this._stopChatPoll(); return; }
+            if (this._chatCurrentPartnerId !== null || document.getElementById('chatMsgArea').style.display !== 'none') {
+                await this._loadChatMessages();
+            }
+        }, 4000);
+    },
+
+    _stopChatPoll() {
+        if (this._chatPollTimer) { clearInterval(this._chatPollTimer); this._chatPollTimer = null; }
+    },
+
+    async _updateChatUnreadBadge() {
+        try {
+            const res = await api.getChatUnread();
+            const badge = document.getElementById('chatUnreadBadge');
+            if (!badge) return;
+            const count = res.success ? res.data : 0;
+            badge.textContent = count;
+            badge.style.display = count > 0 ? 'flex' : 'none';
+        } catch(e) {}
+    },
+
     // ===== CHART RENDERING =====
     _replaceCanvas(id) {
         const old = document.getElementById(id);

@@ -253,6 +253,15 @@ exports.Prisma.UserNotificationScalarFieldEnum = {
   createdAt: 'createdAt'
 };
 
+exports.Prisma.ChatMessageScalarFieldEnum = {
+  id: 'id',
+  fromId: 'fromId',
+  toId: 'toId',
+  message: 'message',
+  isRead: 'isRead',
+  createdAt: 'createdAt'
+};
+
 exports.Prisma.ProRequestScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -295,6 +304,7 @@ exports.Prisma.ModelName = {
   PricePreset: 'PricePreset',
   Subscription: 'Subscription',
   UserNotification: 'UserNotification',
+  ChatMessage: 'ChatMessage',
   ProRequest: 'ProRequest'
 };
 

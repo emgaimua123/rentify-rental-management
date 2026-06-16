@@ -193,6 +193,32 @@ export const updateProRequest = async (req: Request, res: Response) => {
   }
 };
 
+export const grantProSubscription = async (req: Request, res: Response) => {
+  try {
+    const admin = (req as any).user;
+    if (admin.role !== 'ADMIN' && admin.username !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
+    const { userId, plan } = req.body;
+    if (!userId || !plan) {
+      return res.status(400).json({ success: false, message: 'userId and plan are required' });
+    }
+    const durationDays = plan === '1_year' ? 365 : 30;
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + durationDays);
+
+    const subscription = await prisma.subscription.upsert({
+      where: { userId: parseInt(userId) },
+      create: { userId: parseInt(userId), plan, expiresAt, autoRenew: false, status: 'active' },
+      update: { plan, expiresAt, autoRenew: false, status: 'active' }
+    });
+    return res.json({ success: true, data: subscription });
+  } catch (error: any) {
+    console.error('grantProSubscription error:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 export const revokeProSubscription = async (req: Request, res: Response) => {
   try {
     const admin = (req as any).user;

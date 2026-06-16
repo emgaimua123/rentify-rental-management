@@ -45,12 +45,14 @@ import roomRoutes from './modules/room/room.routes';
 import billRoutes from './modules/bill/bill.routes';
 import presetRoutes from './modules/preset/preset.routes';
 import subscriptionRoutes from './modules/subscription/subscription.routes';
+import chatRoutes from './modules/chat/chat.routes';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/rooms', roomRoutes);
 app.use('/api/bills', billRoutes);
 app.use('/api/presets', presetRoutes);
 app.use('/api', subscriptionRoutes);
+app.use('/api', chatRoutes);
 
 // Local dev: start server
 if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {

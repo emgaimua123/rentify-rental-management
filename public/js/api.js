@@ -197,6 +197,15 @@ const api = {
         return res.json();
     },
 
+    async grantProSubscription(userId, plan) {
+        const res = await fetch('/api/subscriptions/grant', {
+            method: 'POST',
+            headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ userId, plan })
+        });
+        return res.json();
+    },
+
     async revokeProSubscription(userId, reason) {
         const res = await fetch(`/api/subscriptions/users/${userId}`, {
             method: 'DELETE',
@@ -217,6 +226,32 @@ const api = {
             method: 'PUT',
             headers: getAuthHeaders()
         });
+        return res.json();
+    },
+
+    // ===== CHAT =====
+    async getChatMessages(userId) {
+        const url = userId ? `/api/chat/messages?userId=${userId}` : '/api/chat/messages';
+        const res = await fetch(url, { headers: getAuthHeaders() });
+        return res.json();
+    },
+
+    async sendChatMessage(message, toId) {
+        const res = await fetch('/api/chat/messages', {
+            method: 'POST',
+            headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ message, toId })
+        });
+        return res.json();
+    },
+
+    async getChatUnread() {
+        const res = await fetch('/api/chat/unread', { headers: getAuthHeaders() });
+        return res.json();
+    },
+
+    async getChatConversations() {
+        const res = await fetch('/api/chat/conversations', { headers: getAuthHeaders() });
         return res.json();
     }
 };

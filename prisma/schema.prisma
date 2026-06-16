@@ -171,6 +171,15 @@ model UserNotification {
   createdAt DateTime @default(now())
 }
 
+model ChatMessage {
+  id        Int      @id @default(autoincrement())
+  fromId    Int
+  toId      Int
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
 model ProRequest {
   id              Int      @id @default(autoincrement())
   userId          Int

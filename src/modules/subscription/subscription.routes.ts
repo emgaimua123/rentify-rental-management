@@ -8,6 +8,7 @@ import {
   updateProRequest,
   markProRequestSeen,
   revokeProSubscription,
+  grantProSubscription,
   getUserNotifications,
   markNotificationRead
 } from './subscription.controller';
@@ -18,6 +19,7 @@ const router = Router();
 router.get('/subscriptions', protect, getSubscription);
 router.post('/subscriptions', protect, createOrUpdateSubscription);
 router.delete('/subscriptions/users/:userId', protect, revokeProSubscription);
+router.post('/subscriptions/grant', protect, grantProSubscription);
 
 // Pro requests routes
 router.get('/pro-requests', protect, getProRequests);
