@@ -4,6 +4,9 @@
 
 Đây là **Backend API** của Rentify, xây dựng bằng **Node.js + Express + TypeScript**, sử dụng **Prisma ORM** với **PostgreSQL**, tài liệu API tự sinh bằng **Swagger**. Hệ thống được thiết kế chạy được cả ở local lẫn serverless trên **Vercel**.
 
+🔗 **Live demo:** https://rentify-rental-management-mu.vercel.app
+📚 **API Docs (Swagger):** https://rentify-rental-management-mu.vercel.app/api-docs
+
 ---
 
 ## ✨ Tính năng nổi bật
@@ -169,6 +172,8 @@ POST   /api/pro-requests           # Gửi yêu cầu nâng cấp Pro
 3. Thêm biến môi trường `DATABASE_URL` và `JWT_SECRET` trong **Project → Settings → Environment Variables**.
 4. Chạy `npx prisma db push` để đẩy schema lên database production.
 5. Deploy — Vercel sẽ tự build và chạy app dưới dạng serverless function (`api/index.js`).
+
+> ✅ Bản deploy thực tế của dự án: **https://rentify-rental-management-mu.vercel.app**
 
 ---
 

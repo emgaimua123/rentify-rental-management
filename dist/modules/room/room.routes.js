@@ -63,6 +63,8 @@ const router = (0, express_1.Router)();
  */
 router.post('/bulk-generate', auth_middleware_1.protect, room_controller_1.bulkGenerateRooms);
 router.get('/contract-history', auth_middleware_1.protect, room_controller_1.getContractHistory);
+router.put('/contract/:id', auth_middleware_1.protect, room_controller_1.updateContract);
+router.delete('/contract/:id', auth_middleware_1.protect, room_controller_1.deleteContract);
 /**
  * @swagger
  * /api/rooms:

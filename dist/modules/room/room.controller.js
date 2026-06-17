@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteRoomMedia = exports.addRoomVideo = exports.uploadRoomImage = exports.bulkGenerateRooms = exports.deleteRoom = exports.updateRoom = exports.createRoom = exports.getContractHistory = exports.getRoomById = exports.getRooms = void 0;
+exports.deleteRoomMedia = exports.addRoomVideo = exports.uploadRoomImage = exports.bulkGenerateRooms = exports.deleteRoom = exports.updateRoom = exports.createRoom = exports.deleteContract = exports.updateContract = exports.getContractHistory = exports.getRoomById = exports.getRooms = void 0;
 const prismaClient_1 = __importDefault(require("../../core/database/prismaClient"));
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
@@ -49,7 +49,7 @@ const getRooms = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const userId = req.user.id;
         const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 10;
+        const limit = parseInt(req.query.limit) || 1000;
         const status = req.query.status;
         const sortBy = req.query.sortBy;
         const sortOrder = req.query.sortOrder === 'desc' ? 'desc' : 'asc';
@@ -134,6 +134,42 @@ const getContractHistory = (req, res) => __awaiter(void 0, void 0, void 0, funct
     }
 });
 exports.getContractHistory = getContractHistory;
+const updateContract = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const contractId = parseInt(req.params.id);
+        const { startDate, endDate, tenantName, tenantPhone, tenantList } = req.body;
+        if (isNaN(contractId)) {
+            return res.status(400).json({ success: false, message: 'Invalid contract ID' });
+        }
+        const updated = yield prismaClient_1.default.contract.update({
+            where: { id: contractId },
+            data: Object.assign(Object.assign(Object.assign(Object.assign({}, (startDate && { startDate: new Date(startDate.includes('T') ? startDate : `${startDate}T12:00:00.000Z`) })), (endDate && { endDate: new Date(endDate.includes('T') ? endDate : `${endDate}T12:00:00.000Z`) })), (tenantName && {
+                tenant: {
+                    update: Object.assign({ name: tenantName }, (tenantPhone && { phone: tenantPhone }))
+                }
+            })), (tenantList !== undefined && { tenantList: tenantList ? JSON.stringify(tenantList) : null }))
+        });
+        return res.json({ success: true, data: updated });
+    }
+    catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+});
+exports.updateContract = updateContract;
+const deleteContract = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const contractId = parseInt(req.params.id);
+        if (isNaN(contractId)) {
+            return res.status(400).json({ success: false, message: 'Invalid contract ID' });
+        }
+        yield prismaClient_1.default.contract.delete({ where: { id: contractId } });
+        return res.json({ success: true, message: 'Contract deleted' });
+    }
+    catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+});
+exports.deleteContract = deleteContract;
 const createRoom = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a, _b;
     try {

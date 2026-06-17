@@ -27,11 +27,14 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: `http://localhost:${port}`,
+        url: '/',
+        description: 'Current host',
       },
     ],
   },
-  apis: ['./src/modules/**/*.routes.ts'],
+  // Quét theo __dirname để hoạt động cả ở local (src/*.ts qua ts-node)
+  // lẫn trên Vercel (dist/*.js sau khi build — comment Swagger được giữ lại).
+  apis: [path.join(__dirname, 'modules/**/*.routes.{ts,js}')],
 };
 
 const swaggerDocs = swaggerJsDoc(swaggerOptions);
