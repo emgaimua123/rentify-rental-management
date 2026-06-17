@@ -5,6 +5,7 @@
 Đây là **Backend API** của Rentify, xây dựng bằng **Node.js + Express + TypeScript**, sử dụng **Prisma ORM** với **PostgreSQL**, tài liệu API tự sinh bằng **Swagger**. Hệ thống được thiết kế chạy được cả ở local lẫn serverless trên **Vercel**.
 
 🔗 **Live demo:** https://rentify-rental-management-mu.vercel.app
+
 📚 **API Docs (Swagger):** https://rentify-rental-management-mu.vercel.app/api-docs
 
 ---
