@@ -909,7 +909,7 @@ const app = {
                     <div class="room-price">${room.price.toLocaleString('vi-VN')} VNĐ</div>
                     <div class="room-meta">
                         <span><i class='bx bx-area'></i> ${room.area || 0} m²</span>
-                        <span><i class='bx bx-building-house'></i> ${room.type}</span>
+                        <span><i class='bx bx-building-house'></i> ${window.i18n ? window.i18n.translateRoomType(room.type) : room.type}</span>
                     </div>
                     <div class="room-actions">
                         <div class="media-count">
@@ -1163,7 +1163,7 @@ const app = {
         document.getElementById('previewName').innerText = room.name;
         document.getElementById('previewPrice').innerText = `${room.price.toLocaleString('vi-VN')} VNĐ`;
         document.getElementById('previewArea').innerText = `${room.area} m²`;
-        document.getElementById('previewType').innerText = room.type;
+        document.getElementById('previewType').innerText = window.i18n ? window.i18n.translateRoomType(room.type) : room.type;
 
         const badge = document.getElementById('previewStatus');
         const statusLabel = window.i18n ? window.i18n.t(`status.${room.status}`) : room.status;

@@ -35,6 +35,9 @@ const translations = {
         "rooms.maintenance": "Bảo trì",
         "rooms.table.room": "Phòng",
         "rooms.table.type": "Loại phòng",
+        "rooms.type_studio": "Studio",
+        "rooms.type_single": "Phòng đơn",
+        "rooms.type_double": "Phòng đôi",
         "rooms.table.price": "Giá thuê",
         "rooms.table.status": "Trạng thái",
         "rooms.table.tenant": "Người thuê",
@@ -87,6 +90,7 @@ const translations = {
         "bill.preview_internet": "Tiền Internet",
         "bill.preview_parking": "Phí gửi xe",
         "bill.preview_total": "TỔNG CỘNG",
+        "bill.invoice_lang": "Ngôn ngữ hóa đơn:",
         "bill.no_bills": "Chưa có hóa đơn nào được tạo.",
         "bill.delete_selected": "Xóa mục đã chọn",
 
@@ -382,6 +386,9 @@ const translations = {
         "rooms.maintenance": "Maintenance",
         "rooms.table.room": "Room",
         "rooms.table.type": "Type",
+        "rooms.type_studio": "Studio",
+        "rooms.type_single": "Single Room",
+        "rooms.type_double": "Double Room",
         "rooms.table.price": "Price",
         "rooms.table.status": "Status",
         "rooms.table.tenant": "Tenant",
@@ -434,6 +441,7 @@ const translations = {
         "bill.preview_internet": "Internet Fee",
         "bill.preview_parking": "Parking Fee",
         "bill.preview_total": "GRAND TOTAL",
+        "bill.invoice_lang": "Invoice language:",
         "bill.no_bills": "No invoices have been created yet.",
         "bill.delete_selected": "Delete Selected",
 
@@ -721,6 +729,24 @@ class I18nManager {
 
     t(key) {
         return (translations[this.lang] && translations[this.lang][key]) || key;
+    }
+
+    // Dịch theo ngôn ngữ chỉ định (dùng cho hóa đơn — độc lập ngôn ngữ trang web).
+    tLang(key, lang) {
+        return (translations[lang] && translations[lang][key])
+            || (translations[this.lang] && translations[this.lang][key])
+            || key;
+    }
+
+    // Dịch loại phòng (giá trị lưu trong DB là tiếng Việt). Giá trị lạ giữ nguyên.
+    translateRoomType(value) {
+        const map = {
+            'Studio': 'rooms.type_studio',
+            'Phòng đơn': 'rooms.type_single',
+            'Phòng đôi': 'rooms.type_double',
+        };
+        const key = map[value];
+        return key ? this.t(key) : (value || '');
     }
 
     updateDOM() {

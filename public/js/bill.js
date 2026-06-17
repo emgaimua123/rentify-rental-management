@@ -2,6 +2,19 @@ const billApp = {
     presets: [],
     bills: [],
     selectedBills: new Set(),
+    currentExtraFees: [],          // phí tùy chọn của preset đang chọn
+    billLang: 'vi',                // ngôn ngữ riêng cho hóa đơn (độc lập trang web)
+
+    // Dịch cho hóa đơn theo billLang (không phụ thuộc ngôn ngữ trang)
+    bt(key) {
+        return window.i18n ? window.i18n.tLang(key, this.billLang) : key;
+    },
+
+    _escapeHtml(str) {
+        return String(str == null ? '' : str)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    },
 
     async init() {
         // Load data from API
@@ -171,6 +184,10 @@ const billApp = {
 
     /* --- BILL CREATION --- */
     async openBillModal() {
+        // Reset phí tùy chọn; mặc định ngôn ngữ hóa đơn theo ngôn ngữ trang hiện tại
+        this.currentExtraFees = [];
+        this.billLang = (window.i18n && window.i18n.currentLang) || 'vi';
+
         // Reset form
         const t = key => window.i18n ? window.i18n.t(key) : null;
         document.getElementById('billRoomSelect').innerHTML = `<option value="">${t('bill.loading_rooms') || '-- Đang tải phòng... --'}</option>`;
@@ -225,8 +242,45 @@ const billApp = {
         document.getElementById('waterModeTotal').checked = true;
         this.toggleWaterMode();
 
-        this.calculateBill();
+        this.applyBillLanguage();
         document.getElementById('billModal').classList.add('active');
+    },
+
+    setBillLang(lang) {
+        this.billLang = lang === 'en' ? 'en' : 'vi';
+        this.applyBillLanguage();
+    },
+
+    // Dịch toàn bộ khung hóa đơn theo billLang (độc lập ngôn ngữ trang web)
+    applyBillLanguage() {
+        const paper = document.getElementById('billPaperPreview');
+        if (paper) {
+            paper.querySelectorAll('[data-i18n]').forEach(el => {
+                el.textContent = this.bt(el.getAttribute('data-i18n'));
+            });
+        }
+
+        // Tháng/năm theo ngôn ngữ hóa đơn
+        const now = new Date();
+        const fmt = this.bt('bill.month_year_format');
+        const bpMonth = document.getElementById('bpMonth');
+        if (bpMonth) {
+            bpMonth.innerText = fmt.replace('{month}', now.getMonth() + 1).replace('{year}', now.getFullYear());
+        }
+
+        // Cập nhật trạng thái active của nút chọn ngôn ngữ
+        const viBtn = document.getElementById('billLangVi');
+        const enBtn = document.getElementById('billLangEn');
+        [['vi', viBtn], ['en', enBtn]].forEach(([lang, btn]) => {
+            if (!btn) return;
+            const active = this.billLang === lang;
+            btn.style.background = active ? 'var(--primary-color)' : 'var(--card-bg)';
+            btn.style.color = active ? '#fff' : 'var(--text-color)';
+            btn.style.borderColor = active ? 'var(--primary-color)' : 'var(--border-color)';
+        });
+
+        // Tính lại để mô tả/đơn vị (số, khối, xe) dùng đúng ngôn ngữ hóa đơn
+        this.calculateBill();
     },
 
     onRoomSelect() {
@@ -246,7 +300,12 @@ const billApp = {
 
     onPresetSelect() {
         const pid = document.getElementById('billPresetSelect').value;
-        if (!pid) return;
+        if (!pid) {
+            // "Tự nhập tay" -> bỏ phí tùy chọn của preset trước đó
+            this.currentExtraFees = [];
+            this.calculateBill();
+            return;
+        }
         const p = this.presets.find(x => String(x.id) === String(pid));
         if (p) {
             // Không đụng vào tiền phòng - giữ nguyên giá phòng đã chọn
@@ -260,6 +319,9 @@ const billApp = {
             document.getElementById('chkManagement').checked = p.managementFee > 0;
             document.getElementById('chkInternet').checked = p.internetFee > 0;
             document.getElementById('chkParking').checked = p.parkingFee > 0;
+
+            // Lưu phí tùy chọn (VD: phí vệ sinh) để hiển thị trong hóa đơn
+            this.currentExtraFees = Array.isArray(p.extraFees) ? p.extraFees : [];
 
             this.calculateBill();
         }
@@ -300,7 +362,7 @@ const billApp = {
         const eNum = Number(document.getElementById('billElectricNum').value) || 0;
         const ePrice = Number(document.getElementById('billElectricPrice').value) || 0;
         const eTotal = eNum * ePrice;
-        const eUnit = window.i18n ? window.i18n.t('bill.electric_unit') : 'số';
+        const eUnit = this.bt('bill.electric_unit');
         document.getElementById('bpElectricDesc').innerText = `${eNum} ${eUnit} x ${ePrice.toLocaleString('vi-VN')}đ`;
         document.getElementById('bpElectricTotal').innerText = eTotal.toLocaleString('vi-VN') + 'đ';
 
@@ -309,12 +371,12 @@ const billApp = {
         let wTotal = 0;
         if (isTotalWater) {
             wTotal = Number(document.getElementById('billWaterTotal').value) || 0;
-            document.getElementById('bpWaterDesc').innerText = window.i18n ? window.i18n.t('bill.water_flat') : 'Khoán / Tự nhập';
+            document.getElementById('bpWaterDesc').innerText = this.bt('bill.water_flat');
         } else {
             const wVol = Number(document.getElementById('billWaterVolume').value) || 0;
             const wPrice = Number(document.getElementById('billWaterPrice').value) || 0;
             wTotal = wVol * wPrice;
-            const wUnit = window.i18n ? window.i18n.t('bill.water_unit') : 'khối';
+            const wUnit = this.bt('bill.water_unit');
             document.getElementById('bpWaterDesc').innerText = `${wVol} ${wUnit} x ${wPrice.toLocaleString('vi-VN')}đ`;
         }
         document.getElementById('bpWaterTotal').innerText = wTotal.toLocaleString('vi-VN') + 'đ';
@@ -344,15 +406,31 @@ const billApp = {
             const pPrice = Number(document.getElementById('billParkingFee').value) || 0;
             pTotal = pCount * pPrice;
             document.getElementById('trParking').style.display = 'table-row';
-            const vUnit = window.i18n ? window.i18n.t('bill.vehicle_unit') : 'xe';
+            const vUnit = this.bt('bill.vehicle_unit');
             document.getElementById('bpParkingDesc').innerText = `${pCount} ${vUnit} x ${pPrice.toLocaleString('vi-VN')}đ`;
             document.getElementById('bpParkingTotal').innerText = pTotal.toLocaleString('vi-VN') + 'đ';
         } else {
             document.getElementById('trParking').style.display = 'none';
         }
 
+        // Phí tùy chọn (VD: phí vệ sinh) lấy từ preset đã chọn
+        const body = document.getElementById('billItemsBody');
+        if (body) body.querySelectorAll('.bill-extra-fee-row').forEach(r => r.remove());
+        let extraTotal = 0;
+        (this.currentExtraFees || []).forEach(f => {
+            const amt = Number(f.price) || 0;
+            extraTotal += amt;
+            if (body) {
+                const tr = document.createElement('tr');
+                tr.className = 'bill-extra-fee-row';
+                tr.innerHTML = `<td>${this._escapeHtml(f.name)}</td>` +
+                    `<td style="text-align:right">${amt.toLocaleString('vi-VN')}đ</td>`;
+                body.appendChild(tr);
+            }
+        });
+
         // Grand Total
-        const grandTotal = roomPrice + eTotal + wTotal + mTotal + iTotal + pTotal;
+        const grandTotal = roomPrice + eTotal + wTotal + mTotal + iTotal + pTotal + extraTotal;
         document.getElementById('bpGrandTotal').innerText = grandTotal.toLocaleString('vi-VN') + 'đ';
 
         // Update VietQR
