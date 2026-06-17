@@ -105,7 +105,7 @@ prisma/
 
 ### 2. Clone & cài đặt
 ```bash
-git clone https://github.com/<your-username>/rentify-rental-management.git
+git clone https://github.com/emgaimua123/rentify-rental-management.git
 cd rentify-rental-management
 npm install
 ```
