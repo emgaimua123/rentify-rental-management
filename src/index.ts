@@ -1,6 +1,5 @@
 import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
-import swaggerUi from 'swagger-ui-express';
 import swaggerJsDoc from 'swagger-jsdoc';
 import path from 'path';
 
@@ -31,14 +30,57 @@ const swaggerOptions = {
         description: 'Current host',
       },
     ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          description: 'Nhập JWT nhận được sau khi đăng nhập (không cần thêm chữ "Bearer").',
+        },
+      },
+    },
   },
   // Quét theo __dirname để hoạt động cả ở local (src/*.ts qua ts-node)
   // lẫn trên Vercel (dist/*.js sau khi build — comment Swagger được giữ lại).
-  apis: [path.join(__dirname, 'modules/**/*.routes.{ts,js}')],
+  // Đổi '\\' -> '/' vì glob coi '\\' là ký tự escape (lỗi trên Windows).
+  apis: [path.join(__dirname, 'modules/**/*.routes.{ts,js}').replace(/\\/g, '/')],
 };
 
 const swaggerDocs = swaggerJsDoc(swaggerOptions);
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+
+// Phục vụ spec dưới dạng JSON
+app.get('/api-docs.json', (_req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerDocs);
+});
+
+// Phục vụ Swagger UI bằng HTML tự load asset từ CDN.
+// Cách này hoạt động ổn định trên Vercel serverless (không phụ thuộc
+// file tĩnh trong node_modules của swagger-ui-express).
+app.get('/api-docs', (_req: Request, res: Response) => {
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Rentify API Docs</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script>
+    window.onload = () => {
+      window.ui = SwaggerUIBundle({
+        url: '/api-docs.json',
+        dom_id: '#swagger-ui',
+      });
+    };
+  </script>
+</body>
+</html>`);
+});
 
 app.use(express.static(path.join(__dirname, '../public')));
 
